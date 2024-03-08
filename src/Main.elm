@@ -1,7 +1,8 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, div, text)
+import Html exposing (Html, button, div, text)
+import Html.Attributes as HA
 
 
 
@@ -15,6 +16,7 @@ main =
 
 
 -- Model
+-- nyt note - store list of guesses. store current row index
 
 
 type alias Model =
@@ -56,8 +58,28 @@ subscriptions _ =
 
 
 -- Views
+-- \u{23ce} - enter key
+-- \u{232b} - delete key
+
+
+rows : List (List Char)
+rows =
+    [ [ 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p' ]
+    , [ 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l' ]
+    , [ '⏎', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '⌫' ]
+    ]
 
 
 view : Model -> Html Msg
 view _ =
-    div [] [ text "hello wordle" ]
+    div [ HA.class "app" ]
+        [ div [ HA.class "board_wrapper" ]
+            [ div [ HA.class "board" ] [ text "todo board" ]
+            ]
+        , div [ HA.class "keyboard" ] (List.map renderRow rows)
+        ]
+
+
+renderRow : List Char -> Html Msg
+renderRow chars =
+    div [ HA.class "keyboard_row" ] (List.map (\char -> button [ HA.class "key" ] [ text (String.fromChar char) ]) chars)

@@ -11,3 +11,76 @@
 a {
   color: #60b5cc;
 }
+
+.app {
+  /* from wordle */
+  width: 100%;
+  /* max-width: var(--game-max-width); */
+  max-width: 400px;
+  margin: 0 auto;
+  height: calc(100% - 45px);
+  /* height: calc(100% - var(--header-height)); */
+  display: flex;
+  flex-direction: column;
+}
+
+.board_wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 1;
+
+  .board {
+    display: grid;
+    grid-template-rows: repeat(6, 1fr);
+    grid-gap: 5px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+
+  .board_row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-gap: 5px;
+  }
+}
+
+.keyboard {
+  height: var(--keyboard-height);
+  margin: 0 8px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+
+  .keyboard_row {
+    display: flex;
+    width: 100%;
+    margin: 0 auto 8px;
+    touch-action: manipulation;
+  }
+
+  .key {
+    font-family: "nyt-franklin";
+    font-size: 1.25em;
+    font-weight: bold;
+    border: 0;
+    padding: 0;
+    margin: 0 6px 0 0;
+    height: 58px;
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    /* background-color: var(--key-bg); */
+    background-color: light-gray;
+    /* color: var(--key-text-color); */
+    color: black;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-transform: uppercase;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.3);
+  }
+}
