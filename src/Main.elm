@@ -4,13 +4,14 @@ import Browser
 import Html exposing (Html, div, text)
 
 type Msg = Increment | Decrement
+type alias Model = Int
 
 main : Program () Int Msg
 main =
     Browser.sandbox { init = 0, update = update, view = view }
 
 
-update : Msg -> number -> number
+update : Msg -> Model -> Model
 update msg model =
     case msg of
         Increment ->
@@ -20,6 +21,6 @@ update msg model =
             model - 1
 
 
-view : Int -> Html Msg
+view : Model -> Html Msg
 view model =
   div [] [text "hello wordle"]
