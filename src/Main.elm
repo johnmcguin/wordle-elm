@@ -74,7 +74,15 @@ view : Model -> Html Msg
 view _ =
     div [ HA.class "app" ]
         [ div [ HA.class "board_wrapper" ]
-            [ div [ HA.class "board" ] [ text "todo board" ]
+            [ div [ HA.class "board" ]
+                [ div [ HA.class "board_row" ]
+                    [ div [ HA.class "tile" ] [ text "t" ]
+                    , div [ HA.class "tile" ] [ text "h" ]
+                    , div [ HA.class "tile" ] [ text "e" ]
+                    , div [ HA.class "tile" ] [ text "i" ]
+                    , div [ HA.class "tile" ] [ text "r" ]
+                    ]
+                ]
             ]
         , div [ HA.class "keyboard" ] (List.map renderRow rows)
         ]
