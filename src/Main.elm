@@ -3,6 +3,8 @@ module Main exposing (main)
 import Browser
 import Html exposing (Html, button, div, text)
 import Html.Attributes as HA
+import Html.Events exposing (onClick)
+import Keyboard
 
 
 
@@ -37,12 +39,15 @@ main =
    Shared state:
    - letters guessed and their state
    - game (Initial, Playing, Over)
+    - if Initial, game board is empty, keyboard is empty
+    - if Playing, game board is _possibly_ filles, keyboard is _possibly_ filled
+    - if Over, game board is filled, keyboard is filled
 -}
 
 
 type Model
     = Initial
-    | Playing
+    | Playing Keyboard.Model
     | Ended
 
 
@@ -58,13 +63,27 @@ init _ =
 
 
 type Msg
-    = KeyPressed String
+    = KeyboardMsg Keyboard.Msg
 
 
-update : Msg -> Model -> ( Model, Cmd msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        KeyPressed _ ->
+    case ( model, msg ) of
+        ( Initial, KeyboardMsg keyboardMsg ) ->
+            let
+                ( keyboardModel, keyboardCmd ) =
+                    Keyboard.init 1
+            in
+            ( Playing keyboardModel, Cmd.none )
+
+        ( Playing keyboardState, KeyboardMsg keyboardMsg ) ->
+            let
+                ( keyboardModel, keyboardCmd ) =
+                    Keyboard.update keyboardMsg keyboardState
+            in
+            ( Playing keyboardModel, Cmd.none )
+
+        _ ->
             ( model, Cmd.none )
 
 
@@ -106,6 +125,7 @@ view _ =
                 ]
             ]
         , div [ HA.class "keyboard" ] (List.map renderRow keyboardRows)
+        , button [ onClick (KeyboardMsg Keyboard.Increment) ] [ text "click me" ]
         ]
 
 
