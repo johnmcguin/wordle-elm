@@ -45,10 +45,15 @@ main =
 -}
 
 
+type GameResult
+    = WonIn Int -- count
+    | Lost
+
+
 type Model
     = Initial
     | Playing Keyboard.Model
-    | Ended
+    | Ended GameResult
 
 
 init : () -> ( Model, Cmd Msg )
@@ -63,24 +68,27 @@ init _ =
 
 
 type Msg
-    = KeyboardMsg Keyboard.Msg
+    = ToKeyboard Keyboard.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( Initial, KeyboardMsg keyboardMsg ) ->
+        ( Initial, ToKeyboard _ ) ->
             let
-                ( keyboardModel, keyboardCmd ) =
-                    Keyboard.init 1
+                keyboardModel =
+                    Keyboard.init
             in
             ( Playing keyboardModel, Cmd.none )
 
-        ( Playing keyboardState, KeyboardMsg keyboardMsg ) ->
+        ( Playing keyboardState, ToKeyboard keyboardMsg ) ->
             let
                 ( keyboardModel, keyboardCmd ) =
                     Keyboard.update keyboardMsg keyboardState
             in
+            -- this pattern ensures that commands produce keybard messages instead of Main messages
+            -- Leverages internal ToKeyboard constructor which delegates to Keyboard module
+            -- ( Playing keyboardModel, Cmd.map ToKeyboard keyboardCmd )
             ( Playing keyboardModel, Cmd.none )
 
         _ ->
@@ -98,20 +106,23 @@ subscriptions _ =
 
 
 -- Views
--- \u{23ce} - enter key
--- \u{232b} - delete key
-
-
-keyboardRows : List (List Char)
-keyboardRows =
-    [ [ 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p' ]
-    , [ 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l' ]
-    , [ '⏎', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '⌫' ]
-    ]
 
 
 view : Model -> Html Msg
-view _ =
+view model =
+    case model of
+        Initial ->
+            Keyboard.init |> layout
+
+        Playing keyboard ->
+            layout keyboard
+
+        Ended gameResult ->
+            div [] [ text "handle end game" ]
+
+
+layout : Keyboard.Model -> Html Msg
+layout keyboardModel =
     div [ HA.class "app" ]
         [ div [ HA.class "board_wrapper" ]
             [ div [ HA.class "board" ]
@@ -124,11 +135,7 @@ view _ =
                     ]
                 ]
             ]
-        , div [ HA.class "keyboard" ] (List.map renderRow keyboardRows)
-        , button [ onClick (KeyboardMsg Keyboard.Increment) ] [ text "click me" ]
+
+        -- this maps Messages from Keyboard view into this module's "ToKeyboard" msg
+        , keyboardModel |> Keyboard.view |> Html.map ToKeyboard
         ]
-
-
-renderRow : List Char -> Html Msg
-renderRow chars =
-    div [ HA.class "keyboard_row" ] (List.map (\char -> button [ HA.class "key" ] [ text (String.fromChar char) ]) chars)
