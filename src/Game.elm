@@ -32,7 +32,8 @@ init =
           , 'o'
           , 'p'
           ]
-        , [ 'a'
+        , [ '0'
+          , 'a'
           , 's'
           , 'd'
           , 'f'
@@ -41,6 +42,7 @@ init =
           , 'j'
           , 'k'
           , 'l'
+          , '0'
           ]
         , [ '⏎'
           , 'z'
@@ -122,6 +124,9 @@ renderBtn letter =
 
         '⏎' ->
             button [ HA.class "key is_enter", onClick SubmitGuess ] [ String.fromChar letter |> text ]
+
+        '0' ->
+            div [ HA.class "key is_spacer" ] []
 
         char ->
             button [ HA.class (keyClass char), onClick (KeyPress letter) ] [ String.fromChar letter |> text ]

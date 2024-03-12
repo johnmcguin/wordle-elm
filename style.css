@@ -109,5 +109,16 @@ a {
     align-items: center;
     text-transform: uppercase;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.3);
+
+    &.is_enter {
+      flex-grow: 1.5;
+    }
+    &.is_delete {
+      flex-grow: 1.5;
+    }
+    &.is_spacer {
+      cursor: unset;
+      flex-grow: .5;
+    }
   }
 }
