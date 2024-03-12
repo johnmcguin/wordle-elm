@@ -20,7 +20,8 @@ type Letter
 
 type alias Model =
     { letters : List (List Letter)
-    , current_guess : List Char
+    , currentGuess : List Char
+    , submitGuess : Bool
     }
 
 
@@ -59,7 +60,8 @@ init =
           , Empty '⌫'
           ]
         ]
-    , current_guess = []
+    , currentGuess = []
+    , submitGuess = False
     }
 
 
@@ -78,17 +80,24 @@ update msg model =
         -- \u{232b} - delete key
         KeyPress '⌫' ->
             let
-                current_guess =
-                    model.current_guess
+                currentGuess =
+                    model.currentGuess
                         |> List.reverse
                         |> List.drop 1
                         |> List.reverse
             in
-            ( { model | current_guess = current_guess }, Cmd.none )
+            ( { model | currentGuess = currentGuess }, Cmd.none )
+
+        KeyPress '⏎' ->
+            let
+                submittable =
+                    List.length model.currentGuess == 5
+            in
+            ( { model | submitGuess = submittable }, Cmd.none )
 
         KeyPress key ->
-            if List.length model.current_guess < 5 then
-                ( { model | current_guess = model.current_guess ++ [ key ] }, Cmd.none )
+            if List.length model.currentGuess < 5 then
+                ( { model | currentGuess = model.currentGuess ++ [ key ] }, Cmd.none )
 
             else
                 ( model, Cmd.none )
