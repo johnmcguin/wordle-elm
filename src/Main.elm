@@ -116,30 +116,10 @@ view : Model -> Html Msg
 view model =
     case model of
         Initial ->
-            Game.init |> layout
+            Game.init |> Game.view |> Html.map ToGame
 
         Playing state ->
-            layout state.game
+            Game.view state.game |> Html.map ToGame
 
         Ended _ ->
             div [] [ text "handle end game" ]
-
-
-layout : Game.Model -> Html Msg
-layout gameModel =
-    div [ HA.class "app" ]
-        [ div [ HA.class "board_wrapper" ]
-            [ div [ HA.class "board" ]
-                [ div [ HA.class "board_row" ]
-                    [ div [ HA.class "tile" ] [ text "t" ]
-                    , div [ HA.class "tile" ] [ text "h" ]
-                    , div [ HA.class "tile" ] [ text "e" ]
-                    , div [ HA.class "tile" ] [ text "i" ]
-                    , div [ HA.class "tile" ] [ text "r" ]
-                    ]
-                ]
-            ]
-
-        -- this maps Messages from Keyboard view into this module's "ToGame" msg
-        , gameModel |> Game.view |> Html.map ToGame
-        ]
