@@ -85,15 +85,15 @@ update msg model =
             in
             ( Playing { game = gameModel }, Cmd.none )
 
-        ( Playing gameState, ToGame gameMsg ) ->
+        ( Playing state, ToGame gameMsg ) ->
             let
                 ( gameModel, _ ) =
-                    Game.update gameMsg gameState.game
+                    Game.update gameMsg state.game
             in
             -- this pattern ensures that commands produce keybard messages instead of Main messages
             -- Leverages internal ToGame constructor which delegates to Keyboard module
             -- ( Playing keyboardModel, Cmd.map ToGame keyboardCmd )
-            ( Playing { gameState | game = gameModel }, Cmd.none )
+            ( Playing { state | game = gameModel }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
