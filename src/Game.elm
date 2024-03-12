@@ -1,4 +1,4 @@
-module Keyboard exposing (Model, Msg(..), init, update, view)
+module Game exposing (Model, Msg(..), init, update, view)
 
 import Html exposing (Html, button, div, text)
 import Html.Attributes as HA

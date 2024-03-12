@@ -1,9 +1,9 @@
 module Main exposing (main)
 
 import Browser
+import Game
 import Html exposing (Html, div, text)
 import Html.Attributes as HA
-import Keyboard
 
 
 
@@ -49,9 +49,14 @@ type GameResult
     | Lost
 
 
+type alias GameBoard =
+    { currentRow : Int
+    }
+
+
 type Model
     = Initial
-    | Playing { keyboard : Keyboard.Model }
+    | Playing { game : Game.Model }
     | Ended GameResult
 
 
@@ -67,28 +72,28 @@ init _ =
 
 
 type Msg
-    = ToKeyboard Keyboard.Msg
+    = ToGame Game.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( Initial, ToKeyboard keyboardMsg ) ->
+        ( Initial, ToGame gameMsg ) ->
             let
-                ( keyboardModel, _ ) =
-                    Keyboard.init |> Keyboard.update keyboardMsg
+                ( gameModel, _ ) =
+                    Game.init |> Game.update gameMsg
             in
-            ( Playing { keyboard = keyboardModel }, Cmd.none )
+            ( Playing { game = gameModel }, Cmd.none )
 
-        ( Playing gameState, ToKeyboard keyboardMsg ) ->
+        ( Playing gameState, ToGame gameMsg ) ->
             let
-                ( keyboardModel, _ ) =
-                    Keyboard.update keyboardMsg gameState.keyboard
+                ( gameModel, _ ) =
+                    Game.update gameMsg gameState.game
             in
             -- this pattern ensures that commands produce keybard messages instead of Main messages
-            -- Leverages internal ToKeyboard constructor which delegates to Keyboard module
-            -- ( Playing keyboardModel, Cmd.map ToKeyboard keyboardCmd )
-            ( Playing { keyboard = keyboardModel }, Cmd.none )
+            -- Leverages internal ToGame constructor which delegates to Keyboard module
+            -- ( Playing keyboardModel, Cmd.map ToGame keyboardCmd )
+            ( Playing { gameState | game = gameModel }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -111,17 +116,17 @@ view : Model -> Html Msg
 view model =
     case model of
         Initial ->
-            Keyboard.init |> layout
+            Game.init |> layout
 
-        Playing gameState ->
-            layout gameState.keyboard
+        Playing state ->
+            layout state.game
 
         Ended _ ->
             div [] [ text "handle end game" ]
 
 
-layout : Keyboard.Model -> Html Msg
-layout keyboardModel =
+layout : Game.Model -> Html Msg
+layout gameModel =
     div [ HA.class "app" ]
         [ div [ HA.class "board_wrapper" ]
             [ div [ HA.class "board" ]
@@ -135,6 +140,6 @@ layout keyboardModel =
                 ]
             ]
 
-        -- this maps Messages from Keyboard view into this module's "ToKeyboard" msg
-        , keyboardModel |> Keyboard.view |> Html.map ToKeyboard
+        -- this maps Messages from Keyboard view into this module's "ToGame" msg
+        , gameModel |> Game.view |> Html.map ToGame
         ]
