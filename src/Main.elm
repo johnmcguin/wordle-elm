@@ -1,9 +1,8 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, text)
+import Html exposing (Html, div, text)
 import Html.Attributes as HA
-import Html.Events exposing (onClick)
 import Keyboard
 
 
@@ -76,14 +75,14 @@ update msg model =
     case ( model, msg ) of
         ( Initial, ToKeyboard keyboardMsg ) ->
             let
-                ( keyboardModel, keyboardCmd ) =
+                ( keyboardModel, _ ) =
                     Keyboard.init |> Keyboard.update keyboardMsg
             in
             ( Playing { keyboard = keyboardModel }, Cmd.none )
 
         ( Playing gameState, ToKeyboard keyboardMsg ) ->
             let
-                ( keyboardModel, keyboardCmd ) =
+                ( keyboardModel, _ ) =
                     Keyboard.update keyboardMsg gameState.keyboard
             in
             -- this pattern ensures that commands produce keybard messages instead of Main messages
@@ -117,7 +116,7 @@ view model =
         Playing gameState ->
             layout gameState.keyboard
 
-        Ended gameResult ->
+        Ended _ ->
             div [] [ text "handle end game" ]
 
 
