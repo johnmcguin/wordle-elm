@@ -52,7 +52,7 @@ type GameResult
 
 type Model
     = Initial
-    | Playing Keyboard.Model
+    | Playing { keyboard : Keyboard.Model }
     | Ended GameResult
 
 
@@ -74,22 +74,22 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( Initial, ToKeyboard _ ) ->
-            let
-                keyboardModel =
-                    Keyboard.init
-            in
-            ( Playing keyboardModel, Cmd.none )
-
-        ( Playing keyboardState, ToKeyboard keyboardMsg ) ->
+        ( Initial, ToKeyboard keyboardMsg ) ->
             let
                 ( keyboardModel, keyboardCmd ) =
-                    Keyboard.update keyboardMsg keyboardState
+                    Keyboard.init |> Keyboard.update keyboardMsg
+            in
+            ( Playing { keyboard = keyboardModel }, Cmd.none )
+
+        ( Playing gameState, ToKeyboard keyboardMsg ) ->
+            let
+                ( keyboardModel, keyboardCmd ) =
+                    Keyboard.update keyboardMsg gameState.keyboard
             in
             -- this pattern ensures that commands produce keybard messages instead of Main messages
             -- Leverages internal ToKeyboard constructor which delegates to Keyboard module
             -- ( Playing keyboardModel, Cmd.map ToKeyboard keyboardCmd )
-            ( Playing keyboardModel, Cmd.none )
+            ( Playing { keyboard = keyboardModel }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -114,8 +114,8 @@ view model =
         Initial ->
             Keyboard.init |> layout
 
-        Playing keyboard ->
-            layout keyboard
+        Playing gameState ->
+            layout gameState.keyboard
 
         Ended gameResult ->
             div [] [ text "handle end game" ]
