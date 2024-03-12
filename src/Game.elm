@@ -64,14 +64,28 @@ init =
 
 type Msg
     = KeyPress Char
+    | SubmitGuess
+    | Delete
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        -- \u{23ce} - enter key
-        -- \u{232b} - delete key
-        KeyPress '⌫' ->
+        KeyPress key ->
+            if List.length model.currentGuess < 5 then
+                ( { model | currentGuess = model.currentGuess ++ [ key ] }, Cmd.none )
+
+            else
+                ( model, Cmd.none )
+
+        SubmitGuess ->
+            let
+                submittable =
+                    List.length model.currentGuess == 5
+            in
+            ( { model | submitGuess = submittable }, Cmd.none )
+
+        Delete ->
             let
                 currentGuess =
                     model.currentGuess
@@ -80,20 +94,6 @@ update msg model =
                         |> List.reverse
             in
             ( { model | currentGuess = currentGuess }, Cmd.none )
-
-        KeyPress '⏎' ->
-            let
-                submittable =
-                    List.length model.currentGuess == 5
-            in
-            ( { model | submitGuess = submittable }, Cmd.none )
-
-        KeyPress key ->
-            if List.length model.currentGuess < 5 then
-                ( { model | currentGuess = model.currentGuess ++ [ key ] }, Cmd.none )
-
-            else
-                ( model, Cmd.none )
 
 
 
@@ -116,4 +116,12 @@ renderRow letter_rows =
 
 renderBtn : Char -> Html Msg
 renderBtn letter =
-    button [ HA.class "key", onClick (KeyPress letter) ] [ String.fromChar letter |> text ]
+    case letter of
+        '⌫' ->
+            button [ HA.class "key", onClick Delete ] [ String.fromChar letter |> text ]
+
+        '⏎' ->
+            button [ HA.class "key", onClick SubmitGuess ] [ String.fromChar letter |> text ]
+
+        _ ->
+            button [ HA.class "key", onClick (KeyPress letter) ] [ String.fromChar letter |> text ]
