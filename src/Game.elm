@@ -118,10 +118,15 @@ renderBtn : Char -> Html Msg
 renderBtn letter =
     case letter of
         '⌫' ->
-            button [ HA.class "key", onClick Delete ] [ String.fromChar letter |> text ]
+            button [ HA.class "key is_delete", onClick Delete ] [ String.fromChar letter |> text ]
 
         '⏎' ->
-            button [ HA.class "key", onClick SubmitGuess ] [ String.fromChar letter |> text ]
+            button [ HA.class "key is_enter", onClick SubmitGuess ] [ String.fromChar letter |> text ]
 
-        _ ->
-            button [ HA.class "key", onClick (KeyPress letter) ] [ String.fromChar letter |> text ]
+        char ->
+            button [ HA.class (keyClass char), onClick (KeyPress letter) ] [ String.fromChar letter |> text ]
+
+
+keyClass : Char -> String
+keyClass letter =
+    "key " ++ "is_" ++ String.fromChar letter
