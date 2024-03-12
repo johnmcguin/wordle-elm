@@ -74,6 +74,18 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        -- \u{23ce} - enter key
+        -- \u{232b} - delete key
+        KeyPress '⌫' ->
+            let
+                current_guess =
+                    model.current_guess
+                        |> List.reverse
+                        |> List.drop 1
+                        |> List.reverse
+            in
+            ( { model | current_guess = current_guess }, Cmd.none )
+
         KeyPress key ->
             if List.length model.current_guess < 5 then
                 ( { model | current_guess = model.current_guess ++ [ key ] }, Cmd.none )
