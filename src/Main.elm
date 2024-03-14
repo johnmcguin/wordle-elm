@@ -1,9 +1,10 @@
 module Main exposing (main)
 
 import Browser
+import Browser.Events
 import Game
 import Html exposing (Html, div, text)
-import Html.Attributes as HA
+import Json.Decode as D
 
 
 
@@ -69,6 +70,7 @@ init _ =
 
 type Msg
     = ToGame Game.Msg
+    | NoOp
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -101,7 +103,47 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    Browser.Events.onKeyUp keyDecoder
+
+
+keyDecoder : D.Decoder Msg
+keyDecoder =
+    D.map toKey (D.field "key" D.string)
+
+
+toKey : String -> Msg
+toKey key =
+    case String.uncons key of
+        Just ( char, "" ) ->
+            let
+                normalizedChar =
+                    Char.toLower char
+
+                code =
+                    Char.toCode normalizedChar
+
+                a =
+                    97
+
+                z =
+                    122
+            in
+            if code >= a && code <= z then
+                ToGame (Game.KeyPress normalizedChar)
+
+            else
+                NoOp
+
+        _ ->
+            case key of
+                "Backspace" ->
+                    ToGame Game.Delete
+
+                "Enter" ->
+                    ToGame Game.SubmitGuess
+
+                _ ->
+                    NoOp
 
 
 
