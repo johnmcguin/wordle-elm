@@ -100,7 +100,6 @@ update msg model =
                         |> Maybe.withDefault []
 
                 -- find the first blank cell (that is the target to fill for the next input value
-                -- find returns (Index, (Char, LetterState))
                 cell =
                     row
                         |> find (\( char, _ ) -> char == ' ')
@@ -240,13 +239,6 @@ keyClass letter =
 
 
 -- Utils
-
-
-getBoardLetterRowAtIndex : Int -> List (List Letter) -> List Letter
-getBoardLetterRowAtIndex index list =
-    list
-        |> LE.getAt index
-        |> Maybe.withDefault []
 
 
 find : (a -> Bool) -> List a -> Maybe ( Int, a )

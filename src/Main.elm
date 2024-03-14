@@ -21,7 +21,7 @@ main =
 
 
 type GameResult
-    = WonIn Int -- count
+    = WonIn Int
     | Lost
 
 
