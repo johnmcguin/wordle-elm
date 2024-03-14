@@ -113,9 +113,6 @@ update msg model =
 
                         Nothing ->
                             row
-
-                _ =
-                    Debug.log "cell" cell
             in
             if guessWritable then
                 ( { model
@@ -143,13 +140,49 @@ update msg model =
 
         Delete ->
             let
+                row =
+                    model.boardLetters
+                        |> LE.getAt model.currentRow
+                        |> Maybe.withDefault []
+
+                backwards_row =
+                    row |> List.reverse
+
+                cell =
+                    backwards_row
+                        |> find (\( char, _ ) -> char /= ' ')
+
+                updatedRow =
+                    case cell of
+                        Just c ->
+                            backwards_row
+                                |> LE.updateAt (Tuple.first c) (\_ -> ( ' ', Blank ))
+                                |> List.reverse
+
+                        Nothing ->
+                            row
+
                 currentGuess =
                     model.currentGuess
                         |> List.reverse
                         |> List.drop 1
                         |> List.reverse
             in
-            ( { model | currentGuess = currentGuess }, Cmd.none )
+            ( { model
+                | currentGuess = currentGuess
+                , boardLetters =
+                    model.boardLetters
+                        |> List.indexedMap
+                            (\idx letterRow ->
+                                if idx == model.currentRow then
+                                    updatedRow
+
+                                else
+                                    letterRow
+                            )
+              }
+            , Cmd.none
+            )
 
 
 
