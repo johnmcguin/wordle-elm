@@ -160,53 +160,19 @@ view : Model -> Html Msg
 view model =
     div [ HA.class "app" ]
         [ div [ HA.class "board_wrapper" ]
-            [ div [ HA.class "board" ]
-                [ div [ HA.class "board_row" ]
-                    [ div [ HA.class "tile" ] [ text "t" ]
-                    , div [ HA.class "tile" ] [ text "h" ]
-                    , div [ HA.class "tile" ] [ text "e" ]
-                    , div [ HA.class "tile" ] [ text "i" ]
-                    , div [ HA.class "tile" ] [ text "r" ]
-                    ]
-                , div [ HA.class "board_row" ]
-                    [ div [ HA.class "tile" ] [ text "t" ]
-                    , div [ HA.class "tile" ] [ text "h" ]
-                    , div [ HA.class "tile" ] [ text "e" ]
-                    , div [ HA.class "tile" ] [ text "i" ]
-                    , div [ HA.class "tile" ] [ text "r" ]
-                    ]
-                , div [ HA.class "board_row" ]
-                    [ div [ HA.class "tile" ] [ text "t" ]
-                    , div [ HA.class "tile" ] [ text "h" ]
-                    , div [ HA.class "tile" ] [ text "e" ]
-                    , div [ HA.class "tile" ] [ text "i" ]
-                    , div [ HA.class "tile" ] [ text "r" ]
-                    ]
-                , div [ HA.class "board_row" ]
-                    [ div [ HA.class "tile" ] [ text "t" ]
-                    , div [ HA.class "tile" ] [ text "h" ]
-                    , div [ HA.class "tile" ] [ text "e" ]
-                    , div [ HA.class "tile" ] [ text "i" ]
-                    , div [ HA.class "tile" ] [ text "r" ]
-                    ]
-                , div [ HA.class "board_row" ]
-                    [ div [ HA.class "tile" ] [ text "t" ]
-                    , div [ HA.class "tile" ] [ text "h" ]
-                    , div [ HA.class "tile" ] [ text "e" ]
-                    , div [ HA.class "tile" ] [ text "i" ]
-                    , div [ HA.class "tile" ] [ text "r" ]
-                    ]
-                , div [ HA.class "board_row" ]
-                    [ div [ HA.class "tile" ] [ text "t" ]
-                    , div [ HA.class "tile" ] [ text "h" ]
-                    , div [ HA.class "tile" ] [ text "e" ]
-                    , div [ HA.class "tile" ] [ text "i" ]
-                    , div [ HA.class "tile" ] [ text "r" ]
-                    ]
-                ]
-            ]
+            [ div [ HA.class "board" ] (List.map renderBoardRow model.boardLetters) ]
         , div [ HA.class "keyboard" ] (List.map renderRow model.keyboardLetters)
         ]
+
+
+renderBoardRow : List Letter -> Html Msg
+renderBoardRow boardRow =
+    div [ HA.class "board_row" ] (List.map renderBoardRowItems boardRow)
+
+
+renderBoardRowItems : Letter -> Html Msg
+renderBoardRowItems letter =
+    div [ HA.class "tile" ] [ text (String.fromChar <| Tuple.first letter) ]
 
 
 renderRow : List Char -> Html Msg
