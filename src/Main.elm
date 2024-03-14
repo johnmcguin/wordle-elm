@@ -49,11 +49,6 @@ type GameResult
     | Lost
 
 
-type alias GameBoard =
-    { currentRow : Int
-    }
-
-
 type Model
     = Initial
     | Playing { game : Game.Model }
@@ -62,10 +57,11 @@ type Model
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Initial, Cmd.none )
+    ( Playing { game = Game.init }, Cmd.none )
 
 
 
+-- ( Initial, Cmd.none )
 -- Update
 -- List of events in the game:
 -- - KeyPressed String (is this is?)

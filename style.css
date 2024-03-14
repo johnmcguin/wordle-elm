@@ -49,10 +49,13 @@ a {
   }
 
   .tile {
-    /* background-color: var(--color-absent); */
-    background-color: gray;
+    background-color: white;
+    /* border: 2px solid var(--color-tone-3); */
+    border: 2px solid black;
+    /* color: var(--color-tone-1); */
+    color: black;
     /* color: var(--key-evaluated-text-color-absent); */
-    color: whitefont-family: "nyt-franklin";
+    /* color: whitefont-family: "nyt-franklin"; */
 
     width: 100%;
     display: inline-flex;
@@ -63,12 +66,10 @@ a {
     font-weight: bold;
     vertical-align: middle;
     box-sizing: border-box;
-    /* color: var(--tile-text-color); */
-    color: white;
     text-transform: uppercase;
     -webkit-user-select: none;
     -moz-user-select: none;
-    user-select: none;;
+    user-select: none;
   }
 }
 
@@ -118,7 +119,7 @@ a {
     }
     &.is_spacer {
       cursor: unset;
-      flex-grow: .5;
+      flex-grow: 0.5;
     }
   }
 }
