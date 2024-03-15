@@ -40,16 +40,6 @@ type alias GameInProgess =
     }
 
 
-
--- type alias Model =
---     { keyboardLetters : List (List Char)
---     , currentGuess : List Char
---     , currentRow : Int
---     , solution : String
---     , board : List (List Letter)
---     }
-
-
 type Model
     = InProgress GameInProgess
     | GameEnd GameResult
@@ -199,9 +189,19 @@ update msg model =
 
                 gameWon =
                     guess == gameState.solution
+
+                gameLost =
+                    guess /= gameState.solution && gameState.currentRow == 6
             in
             -- handle end game, etc
-            ( InProgress gameState, Cmd.none )
+            if gameWon then
+                ( GameEnd (WonIn <| gameState.currentRow + 1), Cmd.none )
+
+            else if gameLost then
+                ( GameEnd Lost, Cmd.none )
+
+            else
+                ( InProgress gameState, Cmd.none )
 
         ( InProgress gameState, Delete ) ->
             let
