@@ -3,7 +3,7 @@ module Main exposing (main)
 import Browser
 import Browser.Events
 import Game
-import Html exposing (Html, div, text)
+import Html exposing (Html)
 import Json.Decode as D
 
 
@@ -25,25 +25,20 @@ main =
 -- Model
 
 
-type GameResult
-    = WonIn Int
-    | Lost
-
-
 type Model
     = Initial
-    | Playing { game : Game.Model }
-    | Ended GameResult
+    | Game Game.Model
 
 
 init : D.Value -> ( Model, Cmd Msg )
 init flags =
     case D.decodeValue flagsDecoder flags of
         Ok result ->
-            ( Playing { game = Game.init result.word }, Cmd.none )
+            -- ( Game { game = Game.init result.word }, Cmd.none )
+            ( Game <| Game.init result.word, Cmd.none )
 
         Err _ ->
-            ( Playing { game = Game.init "" }, Cmd.map ToGame Game.getRandomWord )
+            ( Game <| Game.init "", Cmd.map ToGame Game.getRandomWord )
 
 
 flagsDecoder : D.Decoder Flags
@@ -68,17 +63,17 @@ update msg model =
                 ( gameModel, _ ) =
                     Game.init "" |> Game.update gameMsg
             in
-            ( Playing { game = gameModel }, Cmd.none )
+            ( Game gameModel, Cmd.none )
 
-        ( Playing state, ToGame gameMsg ) ->
+        ( Game gameState, ToGame gameMsg ) ->
             let
                 ( gameModel, _ ) =
-                    Game.update gameMsg state.game
+                    Game.update gameMsg gameState
             in
             -- this pattern ensures that commands produce keybard messages instead of Main messages
             -- Leverages internal ToGame constructor which delegates to Keyboard module
             -- ( Playing keyboardModel, Cmd.map ToGame keyboardCmd )
-            ( Playing { state | game = gameModel }, Cmd.none )
+            ( Game gameModel, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -143,8 +138,5 @@ view model =
         Initial ->
             Game.init "" |> Game.view |> Html.map ToGame
 
-        Playing state ->
-            Game.view state.game |> Html.map ToGame
-
-        Ended _ ->
-            div [] [ text "handle end game" ]
+        Game gameState ->
+            Game.view gameState |> Html.map ToGame

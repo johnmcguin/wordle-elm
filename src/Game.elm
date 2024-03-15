@@ -26,7 +26,12 @@ type alias Letter =
     ( Char, LetterState )
 
 
-type alias Model =
+type GameResult
+    = WonIn Int
+    | Lost
+
+
+type alias GameInProgess =
     { keyboardLetters : List (List Char)
     , currentGuess : List Char
     , currentRow : Int
@@ -35,49 +40,65 @@ type alias Model =
     }
 
 
+
+-- type alias Model =
+--     { keyboardLetters : List (List Char)
+--     , currentGuess : List Char
+--     , currentRow : Int
+--     , solution : String
+--     , board : List (List Letter)
+--     }
+
+
+type Model
+    = InProgress GameInProgess
+    | GameEnd GameResult
+
+
 init : String -> Model
 init solution =
     -- many state bits will need to be dynamic in the case of a refresh
-    { keyboardLetters =
-        [ [ 'q'
-          , 'w'
-          , 'e'
-          , 'r'
-          , 't'
-          , 'y'
-          , 'u'
-          , 'i'
-          , 'o'
-          , 'p'
-          ]
-        , [ '0'
-          , 'a'
-          , 's'
-          , 'd'
-          , 'f'
-          , 'g'
-          , 'h'
-          , 'j'
-          , 'k'
-          , 'l'
-          , '0'
-          ]
-        , [ '⏎'
-          , 'z'
-          , 'x'
-          , 'c'
-          , 'v'
-          , 'b'
-          , 'n'
-          , 'm'
-          , '⌫'
-          ]
-        ]
-    , currentGuess = []
-    , currentRow = 0
-    , board = List.repeat 6 <| List.repeat 5 ( ' ', Blank )
-    , solution = solution
-    }
+    InProgress
+        { keyboardLetters =
+            [ [ 'q'
+              , 'w'
+              , 'e'
+              , 'r'
+              , 't'
+              , 'y'
+              , 'u'
+              , 'i'
+              , 'o'
+              , 'p'
+              ]
+            , [ '0'
+              , 'a'
+              , 's'
+              , 'd'
+              , 'f'
+              , 'g'
+              , 'h'
+              , 'j'
+              , 'k'
+              , 'l'
+              , '0'
+              ]
+            , [ '⏎'
+              , 'z'
+              , 'x'
+              , 'c'
+              , 'v'
+              , 'b'
+              , 'n'
+              , 'm'
+              , '⌫'
+              ]
+            ]
+        , currentGuess = []
+        , currentRow = 0
+        , board = List.repeat 6 <| List.repeat 5 ( ' ', Blank )
+        , solution = solution
+        }
 
 
 
@@ -93,16 +114,16 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        KeyPress key ->
+    case ( model, msg ) of
+        ( InProgress gameState, KeyPress key ) ->
             let
                 guessWritable =
-                    List.length model.currentGuess < 5
+                    List.length gameState.currentGuess < 5
 
                 -- get the current row we are guessing for
                 row =
-                    model.board
-                        |> LE.getAt model.currentRow
+                    gameState.board
+                        |> LE.getAt gameState.currentRow
                         |> Maybe.withDefault []
 
                 -- find the first blank cell (that is the target to fill for the next input value
@@ -120,19 +141,20 @@ update msg model =
                             row
             in
             if guessWritable then
-                ( { model
-                    | currentGuess = model.currentGuess ++ [ key ]
-                    , board =
-                        model.board
-                            |> List.indexedMap
-                                (\idx letterRow ->
-                                    if idx == model.currentRow then
-                                        updatedRow
+                ( InProgress
+                    { gameState
+                        | currentGuess = gameState.currentGuess ++ [ key ]
+                        , board =
+                            gameState.board
+                                |> List.indexedMap
+                                    (\idx letterRow ->
+                                        if idx == gameState.currentRow then
+                                            updatedRow
 
-                                    else
-                                        letterRow
-                                )
-                  }
+                                        else
+                                            letterRow
+                                    )
+                    }
                 , Cmd.none
                 )
 
@@ -140,14 +162,52 @@ update msg model =
                 -- shake?
                 ( model, Cmd.none )
 
-        SubmitGuess ->
-            ( model, Cmd.none )
+        ( InProgress gameState, SubmitGuess ) ->
+            -- get board row at model.currentRow
+            -- validate if the length is 5
+            -- Join the characters to create a string version of the word
+            -- Check to see if the guessed word is the model.solution
+            -- If yes, WIN the game
+            -- If not, compare the guessed word to the list of possible words
+            --  -- if not in list, then stop the guess and show a message that the word is not supported
+            --  -- if it is in the list, submit the guess and update the board row to the correct states (check each char position against the same position in the solution word and update its state)
+            let
+                isPending : Letter -> Bool
+                isPending letter =
+                    case letter of
+                        ( _, Pending ) ->
+                            True
 
-        Delete ->
+                        _ ->
+                            False
+
+                isSubmittable =
+                    gameState.board
+                        |> LE.getAt gameState.currentRow
+                        |> Maybe.map
+                            (\row ->
+                                List.all isPending row
+                            )
+                        |> Maybe.withDefault False
+
+                guess =
+                    gameState.board
+                        |> LE.getAt gameState.currentRow
+                        |> Maybe.map (\row -> List.map Tuple.first row)
+                        |> Maybe.map (\letters -> String.fromList letters)
+                        |> Maybe.withDefault ""
+
+                gameWon =
+                    guess == gameState.solution
+            in
+            -- handle end game, etc
+            ( InProgress gameState, Cmd.none )
+
+        ( InProgress gameState, Delete ) ->
             let
                 row =
-                    model.board
-                        |> LE.getAt model.currentRow
+                    gameState.board
+                        |> LE.getAt gameState.currentRow
                         |> Maybe.withDefault []
 
                 backwards_row =
@@ -168,35 +228,35 @@ update msg model =
                             row
 
                 currentGuess =
-                    model.currentGuess
+                    gameState.currentGuess
                         |> List.reverse
                         |> List.drop 1
                         |> List.reverse
             in
-            ( { model
-                | currentGuess = currentGuess
-                , board =
-                    model.board
-                        |> List.indexedMap
-                            (\idx letterRow ->
-                                if idx == model.currentRow then
-                                    updatedRow
+            ( InProgress
+                { gameState
+                    | currentGuess = currentGuess
+                    , board =
+                        gameState.board
+                            |> List.indexedMap
+                                (\idx letterRow ->
+                                    if idx == gameState.currentRow then
+                                        updatedRow
 
-                                else
-                                    letterRow
-                            )
-              }
+                                    else
+                                        letterRow
+                                )
+                }
             , Cmd.none
             )
 
-        GotRandomIndex idx ->
-            let
-                _ =
-                    Debug.log "idx" idx
-            in
-            ( { model | solution = getRandom idx |> Maybe.withDefault "" }
+        ( InProgress gameState, GotRandomIndex idx ) ->
+            ( InProgress { gameState | solution = getRandom idx |> Maybe.withDefault "" }
             , Cmd.none
             )
+
+        _ ->
+            Debug.todo "handle rest"
 
 
 
@@ -205,11 +265,16 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div [ HA.class "app" ]
-        [ div [ HA.class "board_wrapper" ]
-            [ div [ HA.class "board" ] (List.map renderBoardRow model.board) ]
-        , div [ HA.class "keyboard" ] (List.map renderRow model.keyboardLetters)
-        ]
+    case model of
+        InProgress gameState ->
+            div [ HA.class "app" ]
+                [ div [ HA.class "board_wrapper" ]
+                    [ div [ HA.class "board" ] (List.map renderBoardRow gameState.board) ]
+                , div [ HA.class "keyboard" ] (List.map renderRow gameState.keyboardLetters)
+                ]
+
+        _ ->
+            div [] [ text "todo - handle other states" ]
 
 
 renderBoardRow : List Letter -> Html Msg

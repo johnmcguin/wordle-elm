@@ -13,6 +13,7 @@ wordLength : Int
 wordLength =
   Set.size words
 
+
 getRandom : Int -> Maybe String
 getRandom idx =
   words
