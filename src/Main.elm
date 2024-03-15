@@ -11,7 +11,12 @@ import Json.Decode as D
 -- Main
 
 
-main : Program () Model Msg
+type alias Flags =
+    { word : String
+    }
+
+
+main : Program D.Value Model Msg
 main =
     Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
@@ -31,9 +36,19 @@ type Model
     | Ended GameResult
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( Playing { game = Game.init }, Cmd.none )
+init : D.Value -> ( Model, Cmd Msg )
+init flags =
+    case D.decodeValue flagsDecoder flags of
+        Ok result ->
+            ( Playing { game = Game.init result.word }, Cmd.none )
+
+        Err _ ->
+            ( Playing { game = Game.init "" }, Cmd.map ToGame Game.getRandomWord )
+
+
+flagsDecoder : D.Decoder Flags
+flagsDecoder =
+    D.map Flags (D.field "word" D.string)
 
 
 
@@ -51,7 +66,7 @@ update msg model =
         ( Initial, ToGame gameMsg ) ->
             let
                 ( gameModel, _ ) =
-                    Game.init |> Game.update gameMsg
+                    Game.init "" |> Game.update gameMsg
             in
             ( Playing { game = gameModel }, Cmd.none )
 
@@ -126,7 +141,7 @@ view : Model -> Html Msg
 view model =
     case model of
         Initial ->
-            Game.init |> Game.view |> Html.map ToGame
+            Game.init "" |> Game.view |> Html.map ToGame
 
         Playing state ->
             Game.view state.game |> Html.map ToGame

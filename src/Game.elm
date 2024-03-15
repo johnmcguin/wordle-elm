@@ -1,9 +1,11 @@
-module Game exposing (Model, Msg(..), init, update, view)
+module Game exposing (Model, Msg(..), getRandomWord, init, update, view)
 
 import Html exposing (Html, button, div, text)
 import Html.Attributes as HA
 import Html.Events exposing (onClick)
 import List.Extra as LE
+import Random
+import Words exposing (getRandom, wordLength)
 
 
 
@@ -28,12 +30,14 @@ type alias Model =
     { keyboardLetters : List (List Char)
     , currentGuess : List Char
     , currentRow : Int
-    , boardLetters : List (List Letter)
+    , solution : String
+    , board : List (List Letter)
     }
 
 
-init : Model
-init =
+init : String -> Model
+init solution =
+    -- many state bits will need to be dynamic in the case of a refresh
     { keyboardLetters =
         [ [ 'q'
           , 'w'
@@ -71,7 +75,8 @@ init =
         ]
     , currentGuess = []
     , currentRow = 0
-    , boardLetters = List.repeat 6 <| List.repeat 5 ( ' ', Blank )
+    , board = List.repeat 6 <| List.repeat 5 ( ' ', Blank )
+    , solution = solution
     }
 
 
@@ -83,6 +88,7 @@ type Msg
     = KeyPress Char
     | SubmitGuess
     | Delete
+    | GotRandomIndex Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -95,7 +101,7 @@ update msg model =
 
                 -- get the current row we are guessing for
                 row =
-                    model.boardLetters
+                    model.board
                         |> LE.getAt model.currentRow
                         |> Maybe.withDefault []
 
@@ -116,8 +122,8 @@ update msg model =
             if guessWritable then
                 ( { model
                     | currentGuess = model.currentGuess ++ [ key ]
-                    , boardLetters =
-                        model.boardLetters
+                    , board =
+                        model.board
                             |> List.indexedMap
                                 (\idx letterRow ->
                                     if idx == model.currentRow then
@@ -140,7 +146,7 @@ update msg model =
         Delete ->
             let
                 row =
-                    model.boardLetters
+                    model.board
                         |> LE.getAt model.currentRow
                         |> Maybe.withDefault []
 
@@ -169,8 +175,8 @@ update msg model =
             in
             ( { model
                 | currentGuess = currentGuess
-                , boardLetters =
-                    model.boardLetters
+                , board =
+                    model.board
                         |> List.indexedMap
                             (\idx letterRow ->
                                 if idx == model.currentRow then
@@ -183,6 +189,15 @@ update msg model =
             , Cmd.none
             )
 
+        GotRandomIndex idx ->
+            let
+                _ =
+                    Debug.log "idx" idx
+            in
+            ( { model | solution = getRandom idx |> Maybe.withDefault "" }
+            , Cmd.none
+            )
+
 
 
 -- Views
@@ -192,7 +207,7 @@ view : Model -> Html Msg
 view model =
     div [ HA.class "app" ]
         [ div [ HA.class "board_wrapper" ]
-            [ div [ HA.class "board" ] (List.map renderBoardRow model.boardLetters) ]
+            [ div [ HA.class "board" ] (List.map renderBoardRow model.board) ]
         , div [ HA.class "keyboard" ] (List.map renderRow model.keyboardLetters)
         ]
 
@@ -253,3 +268,13 @@ find pred list =
 
             else
                 Maybe.map (\( index, item ) -> ( index + 1, item )) <| find pred xs
+
+
+getRandomWord : Cmd Msg
+getRandomWord =
+    let
+        generator : Random.Generator Int
+        generator =
+            Random.int 0 wordLength
+    in
+    Random.generate GotRandomIndex generator
