@@ -5,7 +5,7 @@ import Html.Attributes as HA
 import Html.Events exposing (onClick)
 import List.Extra as LE
 import Random
-import Words exposing (getRandom, wordLength)
+import Words exposing (getRandom, wordIsValid, wordLength)
 
 
 
@@ -36,6 +36,7 @@ type alias GameInProgess =
     , currentGuess : List Char
     , currentRow : Int
     , solution : String
+    , shakeRow : Maybe Int
     , board : List (List Letter)
     }
 
@@ -88,6 +89,7 @@ init solution =
         , currentRow = 0
         , board = List.repeat 6 <| List.repeat 5 ( ' ', Blank )
         , solution = solution
+        , shakeRow = Nothing
         }
 
 
@@ -149,7 +151,6 @@ update msg model =
                 )
 
             else
-                -- shake?
                 ( model, Cmd.none )
 
         ( InProgress gameState, SubmitGuess ) ->
@@ -188,10 +189,17 @@ update msg model =
                         |> Maybe.withDefault ""
 
                 gameWon =
-                    guess == gameState.solution
+                    isSubmittable && guess == gameState.solution
 
                 gameLost =
-                    guess /= gameState.solution && gameState.currentRow == 6
+                    -- isSubmittable && guess /= gameState.solution && gameState.currentRow == 6
+                    isSubmittable && guess /= gameState.solution && gameState.currentRow == 6
+
+                progressNextRow =
+                    isSubmittable && guess /= gameState.solution && gameState.currentRow < 6
+
+                isUnsupportedWord =
+                    isSubmittable && guess /= gameState.solution && not (wordIsValid guess)
             in
             -- handle end game, etc
             if gameWon then
@@ -201,7 +209,29 @@ update msg model =
                 ( GameEnd Lost, Cmd.none )
 
             else
-                ( InProgress gameState, Cmd.none )
+                ( InProgress
+                    { gameState
+                        | currentRow =
+                            if progressNextRow then
+                                gameState.currentRow + 1
+
+                            else
+                                gameState.currentRow
+                        , currentGuess =
+                            if not isUnsupportedWord then
+                                []
+
+                            else
+                                gameState.currentGuess
+                        , shakeRow =
+                            if isUnsupportedWord then
+                                Just gameState.currentRow
+
+                            else
+                                Nothing
+                    }
+                , Cmd.none
+                )
 
         ( InProgress gameState, Delete ) ->
             let
@@ -269,7 +299,7 @@ view model =
         InProgress gameState ->
             div [ HA.class "app" ]
                 [ div [ HA.class "board_wrapper" ]
-                    [ div [ HA.class "board" ] (List.map renderBoardRow gameState.board) ]
+                    [ div [ HA.class "board" ] (List.indexedMap (\idx row -> renderBoardRow idx gameState.shakeRow row) gameState.board) ]
                 , div [ HA.class "keyboard" ] (List.map renderRow gameState.keyboardLetters)
                 ]
 
@@ -277,9 +307,9 @@ view model =
             div [] [ text "todo - handle other states" ]
 
 
-renderBoardRow : List Letter -> Html Msg
-renderBoardRow boardRow =
-    div [ HA.class "board_row" ] (List.map renderBoardRowItems boardRow)
+renderBoardRow : Int -> Maybe Int -> List Letter -> Html Msg
+renderBoardRow idx shakeRowVal boardRow =
+    div [ HA.class <| boardRowClass idx shakeRowVal ] (List.map renderBoardRowItems boardRow)
 
 
 renderBoardRowItems : Letter -> Html Msg
@@ -315,6 +345,20 @@ renderBtn letter =
 keyClass : Char -> String
 keyClass letter =
     "key " ++ "is_" ++ String.fromChar letter
+
+
+boardRowClass : Int -> Maybe Int -> String
+boardRowClass boardRowIdx shakeRow =
+    case shakeRow of
+        Just idx ->
+            if boardRowIdx == idx then
+                "board_row shake"
+
+            else
+                "board_row"
+
+        Nothing ->
+            "board_row"
 
 
 
