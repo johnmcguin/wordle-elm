@@ -26,18 +26,22 @@ type alias Letter =
     ( Char, LetterState )
 
 
+type alias KeyboardRow =
+    List Letter
+
+
 type GameResult
     = WonIn Int
     | Lost
 
 
-type alias GameInProgess =
+type alias GameInProgress =
     { keyboardLetters : List (List Char)
     , currentGuess : List Char
     , currentRow : Int
     , solution : String
     , shakeRow : Maybe Int
-    , board : List (List Letter)
+    , board : List KeyboardRow
     }
 
 
@@ -307,7 +311,7 @@ view model =
             div [] [ text "todo - handle other states" ]
 
 
-renderBoardRow : Int -> Maybe Int -> List Letter -> Html Msg
+renderBoardRow : Int -> Maybe Int -> KeyboardRow -> Html Msg
 renderBoardRow idx shakeRowVal boardRow =
     div [ HA.class <| boardRowClass idx shakeRowVal ] (List.map renderBoardRowItems boardRow)
 
