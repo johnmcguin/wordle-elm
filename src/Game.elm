@@ -172,17 +172,14 @@ update msg model =
                 isSubmittable =
                     gameState.board
                         |> LE.getAt gameState.currentRow
-                        |> Maybe.map
-                            (\row ->
-                                List.all isPending row
-                            )
+                        |> Maybe.map (List.all isPending)
                         |> Maybe.withDefault False
 
                 guess =
                     gameState.board
                         |> LE.getAt gameState.currentRow
-                        |> Maybe.map (\row -> List.map Tuple.first row)
-                        |> Maybe.map (\letters -> String.fromList letters)
+                        |> Maybe.map (List.map Tuple.first)
+                        |> Maybe.map String.fromList
                         |> Maybe.withDefault ""
 
                 gameWon =
@@ -315,12 +312,62 @@ view model =
 
 renderBoardRow : Int -> Maybe Int -> KeyboardRow -> Html Msg
 renderBoardRow idx shakeRowVal boardRow =
-    div [ HA.class <| boardRowClass idx shakeRowVal ] (List.map renderBoardRowItems boardRow)
+    div [ HA.class <| boardRowClass idx shakeRowVal ] (List.indexedMap (\index letter -> renderBoardRowItems index letter) boardRow)
 
 
-renderBoardRowItems : Letter -> Html Msg
-renderBoardRowItems letter =
-    div [ HA.class "tile" ] [ text (String.fromChar <| Tuple.first letter) ]
+renderBoardRowItems : Int -> Letter -> Html Msg
+renderBoardRowItems idx letter =
+    div [ HA.class <| revealTileClass letter ]
+        [ div
+            [ HA.class "front"
+            , HA.style "transition-delay" (withDelay (idx * 300))
+            ]
+            [ text (String.fromChar <| Tuple.first letter) ]
+        , div
+            [ HA.class "back"
+            , HA.style "transition-delay" (withDelay (idx * 300))
+            , HA.style "animation-delay" (withDelay (idx * 100))
+            ]
+            [ text (String.fromChar <| Tuple.first letter) ]
+        ]
+
+
+withDelay : Int -> String
+withDelay int =
+    let
+        delay =
+            int
+                |> String.fromInt
+    in
+    delay ++ "ms"
+
+
+revealTileClass : Letter -> String
+revealTileClass letter =
+    case letter of
+        ( _, Blank ) ->
+            "tile"
+
+        ( _, Pending ) ->
+            "tile"
+
+        ( _, Correct ) ->
+            "tile reveal is_correct"
+
+        ( _, Present ) ->
+            "tile reveal is_present"
+
+        ( _, Incorrect ) ->
+            "tile reveal is_incorrect"
+
+
+
+-- = Blank
+-- | Pending
+-- | Correct
+-- | Present
+-- | Incorrect
+-- div [ HA.class "tile" ] [ text (String.fromChar <| Tuple.first letter) ]
 
 
 renderRow : List Char -> Html Msg
