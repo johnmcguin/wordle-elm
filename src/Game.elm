@@ -46,7 +46,7 @@ type alias GameInProgress =
 
 
 type Model
-    = InProgress GameInProgess
+    = InProgress GameInProgress
     | GameEnd GameResult
 
 
@@ -158,14 +158,7 @@ update msg model =
                 ( model, Cmd.none )
 
         ( InProgress gameState, SubmitGuess ) ->
-            -- get board row at model.currentRow
-            -- validate if the length is 5
-            -- Join the characters to create a string version of the word
-            -- Check to see if the guessed word is the model.solution
-            -- If yes, WIN the game
-            -- If not, compare the guessed word to the list of possible words
-            --  -- if not in list, then stop the guess and show a message that the word is not supported
-            --  -- if it is in the list, submit the guess and update the board row to the correct states (check each char position against the same position in the solution word and update its state)
+            -- If the guess is valid, update each entry in the board matrix to its correct state
             let
                 isPending : Letter -> Bool
                 isPending letter =
@@ -196,11 +189,10 @@ update msg model =
                     isSubmittable && guess == gameState.solution
 
                 gameLost =
-                    -- isSubmittable && guess /= gameState.solution && gameState.currentRow == 6
-                    isSubmittable && guess /= gameState.solution && gameState.currentRow == 6
+                    isSubmittable && guess /= gameState.solution && gameState.currentRow == 6 && wordIsValid guess
 
                 progressNextRow =
-                    isSubmittable && guess /= gameState.solution && gameState.currentRow < 6
+                    isSubmittable && guess /= gameState.solution && gameState.currentRow < 6 && wordIsValid guess
 
                 isUnsupportedWord =
                     isSubmittable && guess /= gameState.solution && not (wordIsValid guess)
@@ -221,6 +213,12 @@ update msg model =
 
                             else
                                 gameState.currentRow
+                        , board =
+                            if progressNextRow then
+                                applyGuess gameState
+
+                            else
+                                gameState.board
                         , currentGuess =
                             if not isUnsupportedWord then
                                 []
@@ -234,7 +232,11 @@ update msg model =
                             else
                                 Nothing
                     }
-                , Cmd.none
+                , if isUnsupportedWord then
+                    Cmd.none
+
+                  else
+                    Cmd.none
                 )
 
         ( InProgress gameState, Delete ) ->
@@ -391,3 +393,94 @@ getRandomWord =
             Random.int 0 wordLength
     in
     Random.generate GotRandomIndex generator
+
+
+applyGuess : GameInProgress -> List KeyboardRow
+applyGuess game =
+    game.board
+        |> List.indexedMap
+            (\idx row ->
+                markCorrect idx game.currentRow game.solution row
+            )
+        |> List.indexedMap
+            (\idx row ->
+                markPresent idx game.currentRow game.solution row
+            )
+
+
+markCorrect : Int -> Int -> String -> List ( Char, LetterState ) -> List ( Char, LetterState )
+markCorrect boardIdx activeGameRow solution tiles =
+    if boardIdx == activeGameRow then
+        tiles
+            |> List.indexedMap
+                (\letterIdx tile ->
+                    let
+                        ( char, _ ) =
+                            tile
+
+                        charAsString =
+                            String.fromChar char
+
+                        occurrences =
+                            String.indexes charAsString solution
+
+                        isCorrect =
+                            List.any (\occ -> occ == letterIdx) occurrences
+                    in
+                    if isCorrect then
+                        ( char, Correct )
+
+                    else
+                        tile
+                )
+
+    else
+        tiles
+
+
+markPresent : Int -> Int -> String -> List ( Char, LetterState ) -> List ( Char, LetterState )
+markPresent boardIdx activeGameRow solution tiles =
+    let
+        calcNewSolution : ( Char, LetterState ) -> Char -> Char
+        calcNewSolution tile solutionChar =
+            case tile of
+                ( _, Correct ) ->
+                    '_'
+
+                _ ->
+                    solutionChar
+
+        calculatedSolution =
+            List.map2 calcNewSolution tiles (String.toList solution) |> String.fromList |> String.trim
+    in
+    if boardIdx == activeGameRow then
+        tiles
+            |> List.map
+                (\tile ->
+                    let
+                        ( char, _ ) =
+                            tile
+
+                        charAsString =
+                            String.fromChar char
+
+                        occurrences =
+                            String.indexes charAsString calculatedSolution
+
+                        isCorrect =
+                            List.length occurrences > 0
+                    in
+                    case tile of
+                        ( _, Correct ) ->
+                            tile
+
+                        _ ->
+                            if isCorrect then
+                                ( char, Present )
+
+                            else
+                                ( char, Incorrect )
+                )
+
+    else
+        tiles
