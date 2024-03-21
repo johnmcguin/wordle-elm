@@ -356,18 +356,24 @@ renderBoardRow idx shakeRowVal boardRow =
 
 renderBoardRowItems : Int -> Letter -> Html Msg
 renderBoardRowItems idx letter =
+    let
+        charAsString =
+            letter
+                |> Tuple.first
+                |> String.fromChar
+    in
     div [ HA.class <| revealTileClass letter ]
         [ div
             [ HA.class "front"
             , HA.style "transition-delay" (withDelay (idx * 300))
             ]
-            [ text (String.fromChar <| Tuple.first letter) ]
+            [ text charAsString ]
         , div
             [ HA.class "back"
             , HA.style "transition-delay" (withDelay (idx * 300))
             , HA.style "animation-delay" (withDelay (idx * 100))
             ]
-            [ text (String.fromChar <| Tuple.first letter) ]
+            [ text charAsString ]
         ]
 
 
@@ -391,6 +397,9 @@ revealTileClass letter =
 
         ( _, Incorrect ) ->
             "tile reveal is_incorrect"
+
+        ( _, Pending ) ->
+            "tile filled"
 
         _ ->
             "tile"
