@@ -197,6 +197,16 @@ update msg model =
 
                 isUnsupportedWord =
                     isSubmittable && guess /= gameState.solution && not (wordIsValid guess)
+
+                message =
+                    if isUnsupportedWord then
+                        Just "Not in word list"
+
+                    else if not isSubmittable then
+                        Just "Not enough letters"
+
+                    else
+                        Nothing
             in
             -- handle end game, etc
             if gameWon then
@@ -232,17 +242,9 @@ update msg model =
 
                             else
                                 Nothing
-                        , message =
-                            if isUnsupportedWord then
-                                Just "Not in word list"
-
-                            else if not isSubmittable then
-                                Just "Not enough letters"
-
-                            else
-                                Nothing
+                        , message = message
                     }
-                , Cmd.batch [ maybeClearAnimation isUnsupportedWord, maybeClearAlert isUnsupportedWord (not isSubmittable) ]
+                , Cmd.batch [ clearAnimation isUnsupportedWord, clearAlert message ]
                 )
 
         ( InProgress gameState, Delete ) ->
@@ -557,8 +559,8 @@ markPresent boardIdx activeGameRow solution tiles =
         tiles
 
 
-maybeClearAnimation : Bool -> Cmd Msg
-maybeClearAnimation shouldClear =
+clearAnimation : Bool -> Cmd Msg
+clearAnimation shouldClear =
     if shouldClear then
         Process.sleep 500 |> Task.perform (\_ -> ClearAnimation)
 
@@ -566,10 +568,11 @@ maybeClearAnimation shouldClear =
         Cmd.none
 
 
-maybeClearAlert : Bool -> Bool -> Cmd Msg
-maybeClearAlert a b =
-    if a || b then
-        Process.sleep 1000 |> Task.perform (\_ -> ClearAlert)
+clearAlert : Maybe String -> Cmd Msg
+clearAlert maybeMessage =
+    case maybeMessage of
+        Just _ ->
+            Process.sleep 1000 |> Task.perform (\_ -> ClearAlert)
 
-    else
-        Cmd.none
+        _ ->
+            Cmd.none
