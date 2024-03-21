@@ -4,13 +4,13 @@ import Html exposing (Html, button, div, text)
 import Html.Attributes as HA
 import Html.Events exposing (onClick)
 import List.Extra as LE
+import Process
 import Random
+import Task
 import Words exposing (getRandom, wordIsValid, wordLength)
 
 
 
--- \u{23ce} - enter key
--- \u{232b} - delete key
 -- Model
 
 
@@ -106,6 +106,7 @@ type Msg
     | SubmitGuess
     | Delete
     | GotRandomIndex Int
+    | ClearAnimation
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -229,11 +230,7 @@ update msg model =
                             else
                                 Nothing
                     }
-                , if isUnsupportedWord then
-                    Cmd.none
-
-                  else
-                    Cmd.none
+                , maybeClearAnimation isUnsupportedWord
                 )
 
         ( InProgress gameState, Delete ) ->
@@ -288,6 +285,11 @@ update msg model =
             , Cmd.none
             )
 
+        ( InProgress gameState, ClearAnimation ) ->
+            ( InProgress { gameState | shakeRow = Nothing }
+            , Cmd.none
+            )
+
         _ ->
             Debug.todo "handle rest"
 
@@ -336,8 +338,7 @@ withDelay : Int -> String
 withDelay int =
     let
         delay =
-            int
-                |> String.fromInt
+            String.fromInt int
     in
     delay ++ "ms"
 
@@ -345,12 +346,6 @@ withDelay int =
 revealTileClass : Letter -> String
 revealTileClass letter =
     case letter of
-        ( _, Blank ) ->
-            "tile"
-
-        ( _, Pending ) ->
-            "tile"
-
         ( _, Correct ) ->
             "tile reveal is_correct"
 
@@ -360,14 +355,8 @@ revealTileClass letter =
         ( _, Incorrect ) ->
             "tile reveal is_incorrect"
 
-
-
--- = Blank
--- | Pending
--- | Correct
--- | Present
--- | Incorrect
--- div [ HA.class "tile" ] [ text (String.fromChar <| Tuple.first letter) ]
+        _ ->
+            "tile"
 
 
 renderRow : List Char -> Html Msg
@@ -531,3 +520,12 @@ markPresent boardIdx activeGameRow solution tiles =
 
     else
         tiles
+
+
+maybeClearAnimation : Bool -> Cmd Msg
+maybeClearAnimation shouldClear =
+    if shouldClear then
+        Process.sleep 500 |> Task.perform (\_ -> ClearAnimation)
+
+    else
+        Cmd.none
