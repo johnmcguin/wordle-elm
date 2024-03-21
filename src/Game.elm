@@ -237,14 +237,14 @@ update msg model =
                             else
                                 gameState.currentGuess
                         , shakeRow =
-                            if isUnsupportedWord then
+                            if isUnsupportedWord || not isSubmittable then
                                 Just gameState.currentRow
 
                             else
                                 Nothing
                         , message = message
                     }
-                , Cmd.batch [ clearAnimation isUnsupportedWord, clearAlert message ]
+                , Cmd.batch [ clearAnimation (isUnsupportedWord || not isSubmittable), clearAlert message ]
                 )
 
         ( InProgress gameState, Delete ) ->
