@@ -42,6 +42,7 @@ type alias GameInProgress =
     , solution : String
     , shakeRow : Maybe Int
     , board : List KeyboardRow
+    , message : Maybe String
     }
 
 
@@ -94,6 +95,7 @@ init solution =
         , board = List.repeat 6 <| List.repeat 5 ( ' ', Blank )
         , solution = solution
         , shakeRow = Nothing
+        , message = Nothing
         }
 
 
@@ -107,6 +109,7 @@ type Msg
     | Delete
     | GotRandomIndex Int
     | ClearAnimation
+    | ClearAlert
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -229,8 +232,17 @@ update msg model =
 
                             else
                                 Nothing
+                        , message =
+                            if isUnsupportedWord then
+                                Just "Not in word list"
+
+                            else if not isSubmittable then
+                                Just "Not enough letters"
+
+                            else
+                                Nothing
                     }
-                , maybeClearAnimation isUnsupportedWord
+                , Cmd.batch [ maybeClearAnimation isUnsupportedWord, maybeClearAlert isUnsupportedWord (not isSubmittable) ]
                 )
 
         ( InProgress gameState, Delete ) ->
@@ -290,6 +302,11 @@ update msg model =
             , Cmd.none
             )
 
+        ( InProgress gameState, ClearAlert ) ->
+            ( InProgress { gameState | message = Nothing }
+            , Cmd.none
+            )
+
         _ ->
             Debug.todo "handle rest"
 
@@ -302,10 +319,28 @@ view : Model -> Html Msg
 view model =
     case model of
         InProgress gameState ->
+            let
+                message =
+                    case gameState.message of
+                        Just messageText ->
+                            div [ HA.class "message" ] [ text messageText ]
+
+                        Nothing ->
+                            text ""
+
+                boardRows =
+                    gameState.board
+                        |> List.indexedMap (\idx row -> renderBoardRow idx gameState.shakeRow row)
+
+                keyboardRows =
+                    List.map renderRow gameState.keyboardLetters
+            in
             div [ HA.class "app" ]
                 [ div [ HA.class "board_wrapper" ]
-                    [ div [ HA.class "board" ] (List.indexedMap (\idx row -> renderBoardRow idx gameState.shakeRow row) gameState.board) ]
-                , div [ HA.class "keyboard" ] (List.map renderRow gameState.keyboardLetters)
+                    [ message
+                    , div [ HA.class "board" ] boardRows
+                    ]
+                , div [ HA.class "keyboard" ] keyboardRows
                 ]
 
         _ ->
@@ -526,6 +561,15 @@ maybeClearAnimation : Bool -> Cmd Msg
 maybeClearAnimation shouldClear =
     if shouldClear then
         Process.sleep 500 |> Task.perform (\_ -> ClearAnimation)
+
+    else
+        Cmd.none
+
+
+maybeClearAlert : Bool -> Bool -> Cmd Msg
+maybeClearAlert a b =
+    if a || b then
+        Process.sleep 1000 |> Task.perform (\_ -> ClearAlert)
 
     else
         Cmd.none
