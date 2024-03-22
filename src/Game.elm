@@ -1,5 +1,6 @@
 module Game exposing (Model, Msg(..), getRandomWord, init, update, view)
 
+import Dict exposing (Dict)
 import Html exposing (Html, button, div, text)
 import Html.Attributes as HA
 import Html.Events exposing (onClick)
@@ -26,6 +27,10 @@ type alias Letter =
     ( Char, LetterState )
 
 
+type alias KeyboardDictionary =
+    Dict Char LetterState
+
+
 type alias KeyboardRow =
     List Letter
 
@@ -37,6 +42,7 @@ type GameResult
 
 type alias GameInProgress =
     { keyboardLetters : List (List Char)
+    , keyboardDictionary : KeyboardDictionary
     , currentGuess : List Char
     , currentRow : Int
     , solution : String
@@ -55,44 +61,11 @@ init : String -> Model
 init solution =
     -- many state bits will need to be dynamic in the case of a refresh
     InProgress
-        { keyboardLetters =
-            [ [ 'q'
-              , 'w'
-              , 'e'
-              , 'r'
-              , 't'
-              , 'y'
-              , 'u'
-              , 'i'
-              , 'o'
-              , 'p'
-              ]
-            , [ '0'
-              , 'a'
-              , 's'
-              , 'd'
-              , 'f'
-              , 'g'
-              , 'h'
-              , 'j'
-              , 'k'
-              , 'l'
-              , '0'
-              ]
-            , [ '⏎'
-              , 'z'
-              , 'x'
-              , 'c'
-              , 'v'
-              , 'b'
-              , 'n'
-              , 'm'
-              , '⌫'
-              ]
-            ]
+        { keyboardLetters = initKeyboardDictLetters
+        , keyboardDictionary = initKeyboardDict
         , currentGuess = []
         , currentRow = 0
-        , board = List.repeat 6 <| List.repeat 5 ( ' ', Blank )
+        , board = initBoard
         , solution = solution
         , shakeRow = Nothing
         , message = Nothing
@@ -120,13 +93,11 @@ update msg model =
                 guessWritable =
                     List.length gameState.currentGuess < 5
 
-                -- get the current row we are guessing for
                 row =
                     gameState.board
                         |> LE.getAt gameState.currentRow
                         |> Maybe.withDefault []
 
-                -- find the first blank cell (that is the target to fill for the next input value
                 cell =
                     row
                         |> find (\( char, _ ) -> char == ' ')
@@ -207,8 +178,17 @@ update msg model =
 
                     else
                         Nothing
+
+                board =
+                    if progressNextRow then
+                        applyGuess gameState
+
+                    else
+                        gameState.board
+
+                newDict =
+                    updateKeyboardDict gameState.currentGuess gameState.keyboardDictionary
             in
-            -- handle end game, etc
             if gameWon then
                 ( GameEnd (WonIn <| gameState.currentRow + 1), Cmd.none )
 
@@ -224,12 +204,7 @@ update msg model =
 
                             else
                                 gameState.currentRow
-                        , board =
-                            if progressNextRow then
-                                applyGuess gameState
-
-                            else
-                                gameState.board
+                        , board = board
                         , currentGuess =
                             if not isUnsupportedWord then
                                 []
@@ -377,34 +352,6 @@ renderBoardRowItems idx letter =
         ]
 
 
-withDelay : Int -> String
-withDelay int =
-    let
-        delay =
-            String.fromInt int
-    in
-    delay ++ "ms"
-
-
-revealTileClass : Letter -> String
-revealTileClass letter =
-    case letter of
-        ( _, Correct ) ->
-            "tile reveal is_correct"
-
-        ( _, Present ) ->
-            "tile reveal is_present"
-
-        ( _, Incorrect ) ->
-            "tile reveal is_incorrect"
-
-        ( _, Pending ) ->
-            "tile filled"
-
-        _ ->
-            "tile"
-
-
 renderRow : List Char -> Html Msg
 renderRow letter_rows =
     let
@@ -430,6 +377,29 @@ renderBtn letter =
             button [ HA.class (keyClass char), onClick <| KeyPress letter ] [ String.fromChar letter |> text ]
 
 
+
+-- Helper function for dynamic classes
+
+
+revealTileClass : Letter -> String
+revealTileClass letter =
+    case letter of
+        ( _, Correct ) ->
+            "tile reveal is_correct"
+
+        ( _, Present ) ->
+            "tile reveal is_present"
+
+        ( _, Incorrect ) ->
+            "tile reveal is_incorrect"
+
+        ( _, Pending ) ->
+            "tile filled"
+
+        _ ->
+            "tile"
+
+
 keyClass : Char -> String
 keyClass letter =
     "key " ++ "is_" ++ String.fromChar letter
@@ -453,6 +423,15 @@ boardRowClass boardRowIdx shakeRow =
 -- Utils
 
 
+withDelay : Int -> String
+withDelay int =
+    let
+        delay =
+            String.fromInt int
+    in
+    delay ++ "ms"
+
+
 find : (a -> Bool) -> List a -> Maybe ( Int, a )
 find pred list =
     case list of
@@ -465,6 +444,29 @@ find pred list =
 
             else
                 Maybe.map (\( index, item ) -> ( index + 1, item )) <| find pred xs
+
+
+clearAnimation : Bool -> Cmd Msg
+clearAnimation shouldClear =
+    if shouldClear then
+        Process.sleep 500 |> Task.perform (\_ -> ClearAnimation)
+
+    else
+        Cmd.none
+
+
+clearAlert : Maybe String -> Cmd Msg
+clearAlert maybeMessage =
+    case maybeMessage of
+        Just _ ->
+            Process.sleep 1000 |> Task.perform (\_ -> ClearAlert)
+
+        _ ->
+            Cmd.none
+
+
+
+-- Game related functions
 
 
 getRandomWord : Cmd Msg
@@ -480,18 +482,45 @@ getRandomWord =
 applyGuess : GameInProgress -> List KeyboardRow
 applyGuess game =
     game.board
-        |> List.indexedMap
-            (\idx row ->
-                markCorrect idx game.currentRow game.solution row
-            )
-        |> List.indexedMap
-            (\idx row ->
-                markPresent idx game.currentRow game.solution row
-            )
+        |> List.indexedMap (markCorrect game.currentRow game.solution)
+        |> List.indexedMap (markOtherTiles game.currentRow game.solution)
 
 
-markCorrect : Int -> Int -> String -> List ( Char, LetterState ) -> List ( Char, LetterState )
-markCorrect boardIdx activeGameRow solution tiles =
+updateKeyboardDict : List Char -> KeyboardDictionary -> KeyboardDictionary
+updateKeyboardDict currentGuess currentDict =
+    List.foldl
+        (\ch dict ->
+            Dict.update ch
+                (\maybeLetterState ->
+                    let
+                        _ =
+                            Debug.log "maybeLetterState" maybeLetterState
+                    in
+                    case maybeLetterState of
+                        Just Blank ->
+                            Just Blank
+
+                        -- if at any point is has been marked correct, we want to keep that demarcation on the keyboard
+                        Just Correct ->
+                            Just Correct
+
+                        Just Present ->
+                            Just Present
+
+                        Just Incorrect ->
+                            Just Incorrect
+
+                        _ ->
+                            Just Blank
+                )
+                dict
+        )
+        currentDict
+        currentGuess
+
+
+markCorrect : Int -> String -> Int -> List ( Char, LetterState ) -> List ( Char, LetterState )
+markCorrect activeGameRow solution boardIdx tiles =
     if boardIdx == activeGameRow then
         tiles
             |> List.indexedMap
@@ -520,8 +549,8 @@ markCorrect boardIdx activeGameRow solution tiles =
         tiles
 
 
-markPresent : Int -> Int -> String -> List ( Char, LetterState ) -> List ( Char, LetterState )
-markPresent boardIdx activeGameRow solution tiles =
+markOtherTiles : Int -> String -> Int -> List ( Char, LetterState ) -> List ( Char, LetterState )
+markOtherTiles activeGameRow solution boardIdx tiles =
     let
         calcNewSolution : ( Char, LetterState ) -> Char -> Char
         calcNewSolution tile solutionChar =
@@ -568,20 +597,76 @@ markPresent boardIdx activeGameRow solution tiles =
         tiles
 
 
-clearAnimation : Bool -> Cmd Msg
-clearAnimation shouldClear =
-    if shouldClear then
-        Process.sleep 500 |> Task.perform (\_ -> ClearAnimation)
+initKeyboardDict : KeyboardDictionary
+initKeyboardDict =
+    Dict.fromList
+        [ ( 'a', Blank )
+        , ( 'b', Blank )
+        , ( 'c', Blank )
+        , ( 'd', Blank )
+        , ( 'e', Blank )
+        , ( 'f', Blank )
+        , ( 'g', Blank )
+        , ( 'h', Blank )
+        , ( 'i', Blank )
+        , ( 'j', Blank )
+        , ( 'k', Blank )
+        , ( 'l', Blank )
+        , ( 'm', Blank )
+        , ( 'n', Blank )
+        , ( 'o', Blank )
+        , ( 'p', Blank )
+        , ( 'q', Blank )
+        , ( 'r', Blank )
+        , ( 's', Blank )
+        , ( 't', Blank )
+        , ( 'u', Blank )
+        , ( 'v', Blank )
+        , ( 'w', Blank )
+        , ( 'x', Blank )
+        , ( 'y', Blank )
+        , ( 'z', Blank )
+        ]
 
-    else
-        Cmd.none
+
+initKeyboardDictLetters : List (List Char)
+initKeyboardDictLetters =
+    [ [ 'q'
+      , 'w'
+      , 'e'
+      , 'r'
+      , 't'
+      , 'y'
+      , 'u'
+      , 'i'
+      , 'o'
+      , 'p'
+      ]
+    , [ '0'
+      , 'a'
+      , 's'
+      , 'd'
+      , 'f'
+      , 'g'
+      , 'h'
+      , 'j'
+      , 'k'
+      , 'l'
+      , '0'
+      ]
+    , [ '⏎'
+      , 'z'
+      , 'x'
+      , 'c'
+      , 'v'
+      , 'b'
+      , 'n'
+      , 'm'
+      , '⌫'
+      ]
+    ]
 
 
-clearAlert : Maybe String -> Cmd Msg
-clearAlert maybeMessage =
-    case maybeMessage of
-        Just _ ->
-            Process.sleep 1000 |> Task.perform (\_ -> ClearAlert)
-
-        _ ->
-            Cmd.none
+initBoard : List KeyboardRow
+initBoard =
+    List.repeat 6 <| List.repeat 5 ( ' ', Blank )
