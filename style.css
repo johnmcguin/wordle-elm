@@ -2,6 +2,7 @@
   --correct: #6aaa64;
   --incorrect: #787c7e;
   --present: #c9b458;
+  --lightgray: #d3d6da;
 }
 
 .app {
@@ -54,7 +55,7 @@
 
   .tile {
     background-color: white;
-    border: 2px solid black;
+    border: 2px solid var(--lightgray);
     color: black;
     width: 100%;
     display: inline-flex;
@@ -96,7 +97,7 @@
     }
     &.reveal {
       &.is_incorrect {
-        border-color: var(--incorrect);
+        border: none;
       }
 
       &.is_incorrect .back {
@@ -105,7 +106,7 @@
       }
 
       &.is_correct {
-        border-color: var(--correct);
+        border: none;
       }
 
       &.is_correct .back {
@@ -114,7 +115,7 @@
       }
 
       &.is_present {
-        border-color: var(--present);
+        border: none;
       }
 
       &.is_present .back {
