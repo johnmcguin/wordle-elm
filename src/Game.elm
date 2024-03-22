@@ -59,7 +59,6 @@ type Model
 
 init : String -> Model
 init solution =
-    -- many state bits will need to be dynamic in the case of a refresh
     InProgress
         { keyboardLetters = initKeyboardDictLetters
         , keyboardDictionary = initKeyboardDict
@@ -133,7 +132,6 @@ update msg model =
                 ( model, Cmd.none )
 
         ( InProgress gameState, SubmitGuess ) ->
-            -- If the guess is valid, update each entry in the board matrix to its correct state
             let
                 isPending : Letter -> Bool
                 isPending letter =
@@ -187,7 +185,7 @@ update msg model =
                         gameState.board
 
                 newDict =
-                    updateKeyboardDict gameState.currentGuess gameState.keyboardDictionary
+                    updateKeyboardDict gameState.currentGuess gameState.keyboardDictionary gameState.solution
             in
             if gameWon then
                 ( GameEnd (WonIn <| gameState.currentRow + 1), Cmd.none )
@@ -218,6 +216,7 @@ update msg model =
                             else
                                 Nothing
                         , message = message
+                        , keyboardDictionary = newDict
                     }
                 , Cmd.batch [ clearAnimation (isUnsupportedWord || not isSubmittable), clearAlert message ]
                 )
@@ -378,6 +377,243 @@ renderBtn letter =
 
 
 
+-- Game related functions
+
+
+getRandomWord : Cmd Msg
+getRandomWord =
+    let
+        generator : Random.Generator Int
+        generator =
+            Random.int 0 wordLength
+    in
+    Random.generate GotRandomIndex generator
+
+
+applyGuess : GameInProgress -> List KeyboardRow
+applyGuess game =
+    game.board
+        |> List.indexedMap (markCorrect game.currentRow game.solution)
+        |> List.indexedMap (markOtherTiles game.currentRow game.solution)
+
+
+updateKeyboardDict : List Char -> KeyboardDictionary -> String -> KeyboardDictionary
+updateKeyboardDict currentGuess currentDict solution =
+    LE.indexedFoldl
+        (\idx ch dict ->
+            Dict.update ch
+                (\maybeLetterState ->
+                    let
+                        checkCorrect =
+                            checkCorrectChar ch idx solution
+
+                        checkOthers =
+                            checkOtherStatesChar ch solution
+
+                        _ =
+                            Debug.log "maybeLetterState" maybeLetterState
+                    in
+                    case maybeLetterState of
+                        Just Blank ->
+                            Just (checkCorrect Blank |> checkOthers)
+
+                        -- if at any point is has been marked correct, we want to keep that demarcation on the keyboard
+                        Just Correct ->
+                            Just Correct
+
+                        Just Present ->
+                            Just (checkCorrect Present |> checkOthers)
+
+                        Just Incorrect ->
+                            Just (checkCorrect Incorrect |> checkOthers)
+
+                        _ ->
+                            Just Blank
+                )
+                dict
+        )
+        currentDict
+        currentGuess
+
+
+checkCorrectChar : Char -> Int -> String -> LetterState -> LetterState
+checkCorrectChar ch idx word currentLetterState =
+    let
+        charAsString =
+            String.fromChar ch
+
+        occurrences =
+            String.indexes charAsString word
+
+        isCorrect =
+            List.any (\occ -> occ == idx) occurrences
+    in
+    if isCorrect then
+        Correct
+
+    else
+        currentLetterState
+
+
+checkOtherStatesChar : Char -> String -> LetterState -> LetterState
+checkOtherStatesChar ch word markedLetterState =
+    let
+        charAsString =
+            String.fromChar ch
+
+        occurrences =
+            String.indexes charAsString word
+
+        isPresent =
+            List.length occurrences > 0
+
+        currentlyCorrect =
+            case markedLetterState of
+                Correct ->
+                    True
+
+                _ ->
+                    False
+    in
+    if currentlyCorrect then
+        Correct
+
+    else if isPresent then
+        Present
+
+    else
+        Incorrect
+
+
+markCorrect : Int -> String -> Int -> List ( Char, LetterState ) -> List ( Char, LetterState )
+markCorrect activeGameRow solution boardIdx tiles =
+    if boardIdx == activeGameRow then
+        tiles
+            |> List.indexedMap
+                (\letterIdx tile ->
+                    let
+                        ( char, currentLetterState ) =
+                            tile
+
+                        letterState =
+                            checkCorrectChar char letterIdx solution currentLetterState
+                    in
+                    ( char, letterState )
+                )
+
+    else
+        tiles
+
+
+markOtherTiles : Int -> String -> Int -> List ( Char, LetterState ) -> List ( Char, LetterState )
+markOtherTiles activeGameRow solution boardIdx tiles =
+    let
+        calcNewSolution : ( Char, LetterState ) -> Char -> Char
+        calcNewSolution tile solutionChar =
+            case tile of
+                ( _, Correct ) ->
+                    '_'
+
+                _ ->
+                    solutionChar
+
+        calculatedSolution =
+            List.map2 calcNewSolution tiles (String.toList solution) |> String.fromList |> String.trim
+    in
+    if boardIdx == activeGameRow then
+        tiles
+            |> List.map
+                (\tile ->
+                    let
+                        ( char, currentLetterState ) =
+                            tile
+
+                        newLetterState =
+                            checkOtherStatesChar char calculatedSolution currentLetterState
+                    in
+                    ( char, newLetterState )
+                )
+
+    else
+        tiles
+
+
+initKeyboardDict : KeyboardDictionary
+initKeyboardDict =
+    Dict.fromList
+        [ ( 'a', Blank )
+        , ( 'b', Blank )
+        , ( 'c', Blank )
+        , ( 'd', Blank )
+        , ( 'e', Blank )
+        , ( 'f', Blank )
+        , ( 'g', Blank )
+        , ( 'h', Blank )
+        , ( 'i', Blank )
+        , ( 'j', Blank )
+        , ( 'k', Blank )
+        , ( 'l', Blank )
+        , ( 'm', Blank )
+        , ( 'n', Blank )
+        , ( 'o', Blank )
+        , ( 'p', Blank )
+        , ( 'q', Blank )
+        , ( 'r', Blank )
+        , ( 's', Blank )
+        , ( 't', Blank )
+        , ( 'u', Blank )
+        , ( 'v', Blank )
+        , ( 'w', Blank )
+        , ( 'x', Blank )
+        , ( 'y', Blank )
+        , ( 'z', Blank )
+        ]
+
+
+initKeyboardDictLetters : List (List Char)
+initKeyboardDictLetters =
+    [ [ 'q'
+      , 'w'
+      , 'e'
+      , 'r'
+      , 't'
+      , 'y'
+      , 'u'
+      , 'i'
+      , 'o'
+      , 'p'
+      ]
+    , [ '0'
+      , 'a'
+      , 's'
+      , 'd'
+      , 'f'
+      , 'g'
+      , 'h'
+      , 'j'
+      , 'k'
+      , 'l'
+      , '0'
+      ]
+    , [ '⏎'
+      , 'z'
+      , 'x'
+      , 'c'
+      , 'v'
+      , 'b'
+      , 'n'
+      , 'm'
+      , '⌫'
+      ]
+    ]
+
+
+initBoard : List KeyboardRow
+initBoard =
+    List.repeat 6 <| List.repeat 5 ( ' ', Blank )
+
+
+
 -- Helper function for dynamic classes
 
 
@@ -463,210 +699,3 @@ clearAlert maybeMessage =
 
         _ ->
             Cmd.none
-
-
-
--- Game related functions
-
-
-getRandomWord : Cmd Msg
-getRandomWord =
-    let
-        generator : Random.Generator Int
-        generator =
-            Random.int 0 wordLength
-    in
-    Random.generate GotRandomIndex generator
-
-
-applyGuess : GameInProgress -> List KeyboardRow
-applyGuess game =
-    game.board
-        |> List.indexedMap (markCorrect game.currentRow game.solution)
-        |> List.indexedMap (markOtherTiles game.currentRow game.solution)
-
-
-updateKeyboardDict : List Char -> KeyboardDictionary -> KeyboardDictionary
-updateKeyboardDict currentGuess currentDict =
-    List.foldl
-        (\ch dict ->
-            Dict.update ch
-                (\maybeLetterState ->
-                    let
-                        _ =
-                            Debug.log "maybeLetterState" maybeLetterState
-                    in
-                    case maybeLetterState of
-                        Just Blank ->
-                            Just Blank
-
-                        -- if at any point is has been marked correct, we want to keep that demarcation on the keyboard
-                        Just Correct ->
-                            Just Correct
-
-                        Just Present ->
-                            Just Present
-
-                        Just Incorrect ->
-                            Just Incorrect
-
-                        _ ->
-                            Just Blank
-                )
-                dict
-        )
-        currentDict
-        currentGuess
-
-
-markCorrect : Int -> String -> Int -> List ( Char, LetterState ) -> List ( Char, LetterState )
-markCorrect activeGameRow solution boardIdx tiles =
-    if boardIdx == activeGameRow then
-        tiles
-            |> List.indexedMap
-                (\letterIdx tile ->
-                    let
-                        ( char, _ ) =
-                            tile
-
-                        charAsString =
-                            String.fromChar char
-
-                        occurrences =
-                            String.indexes charAsString solution
-
-                        isCorrect =
-                            List.any (\occ -> occ == letterIdx) occurrences
-                    in
-                    if isCorrect then
-                        ( char, Correct )
-
-                    else
-                        tile
-                )
-
-    else
-        tiles
-
-
-markOtherTiles : Int -> String -> Int -> List ( Char, LetterState ) -> List ( Char, LetterState )
-markOtherTiles activeGameRow solution boardIdx tiles =
-    let
-        calcNewSolution : ( Char, LetterState ) -> Char -> Char
-        calcNewSolution tile solutionChar =
-            case tile of
-                ( _, Correct ) ->
-                    '_'
-
-                _ ->
-                    solutionChar
-
-        calculatedSolution =
-            List.map2 calcNewSolution tiles (String.toList solution) |> String.fromList |> String.trim
-    in
-    if boardIdx == activeGameRow then
-        tiles
-            |> List.map
-                (\tile ->
-                    let
-                        ( char, _ ) =
-                            tile
-
-                        charAsString =
-                            String.fromChar char
-
-                        occurrences =
-                            String.indexes charAsString calculatedSolution
-
-                        isCorrect =
-                            List.length occurrences > 0
-                    in
-                    case tile of
-                        ( _, Correct ) ->
-                            tile
-
-                        _ ->
-                            if isCorrect then
-                                ( char, Present )
-
-                            else
-                                ( char, Incorrect )
-                )
-
-    else
-        tiles
-
-
-initKeyboardDict : KeyboardDictionary
-initKeyboardDict =
-    Dict.fromList
-        [ ( 'a', Blank )
-        , ( 'b', Blank )
-        , ( 'c', Blank )
-        , ( 'd', Blank )
-        , ( 'e', Blank )
-        , ( 'f', Blank )
-        , ( 'g', Blank )
-        , ( 'h', Blank )
-        , ( 'i', Blank )
-        , ( 'j', Blank )
-        , ( 'k', Blank )
-        , ( 'l', Blank )
-        , ( 'm', Blank )
-        , ( 'n', Blank )
-        , ( 'o', Blank )
-        , ( 'p', Blank )
-        , ( 'q', Blank )
-        , ( 'r', Blank )
-        , ( 's', Blank )
-        , ( 't', Blank )
-        , ( 'u', Blank )
-        , ( 'v', Blank )
-        , ( 'w', Blank )
-        , ( 'x', Blank )
-        , ( 'y', Blank )
-        , ( 'z', Blank )
-        ]
-
-
-initKeyboardDictLetters : List (List Char)
-initKeyboardDictLetters =
-    [ [ 'q'
-      , 'w'
-      , 'e'
-      , 'r'
-      , 't'
-      , 'y'
-      , 'u'
-      , 'i'
-      , 'o'
-      , 'p'
-      ]
-    , [ '0'
-      , 'a'
-      , 's'
-      , 'd'
-      , 'f'
-      , 'g'
-      , 'h'
-      , 'j'
-      , 'k'
-      , 'l'
-      , '0'
-      ]
-    , [ '⏎'
-      , 'z'
-      , 'x'
-      , 'c'
-      , 'v'
-      , 'b'
-      , 'n'
-      , 'm'
-      , '⌫'
-      ]
-    ]
-
-
-initBoard : List KeyboardRow
-initBoard =
-    List.repeat 6 <| List.repeat 5 ( ' ', Blank )
