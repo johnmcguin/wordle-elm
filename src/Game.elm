@@ -309,7 +309,7 @@ view model =
                         |> List.indexedMap (\idx row -> renderBoardRow idx gameState.shakeRow row)
 
                 keyboardRows =
-                    List.map renderRow gameState.keyboardLetters
+                    List.map (renderRow gameState.keyboardDictionary) gameState.keyboardLetters
             in
             div [ HA.class "app" ]
                 [ div [ HA.class "board_wrapper" ]
@@ -351,17 +351,17 @@ renderBoardRowItems idx letter =
         ]
 
 
-renderRow : List Char -> Html Msg
-renderRow letter_rows =
+renderRow : KeyboardDictionary -> List Char -> Html Msg
+renderRow keyboardDictionary letterRows =
     let
         key_rows =
-            List.map renderBtn letter_rows
+            List.map (renderBtn keyboardDictionary) letterRows
     in
     div [ HA.class "keyboard_row" ] key_rows
 
 
-renderBtn : Char -> Html Msg
-renderBtn letter =
+renderBtn : KeyboardDictionary -> Char -> Html Msg
+renderBtn keyboardDictionary letter =
     case letter of
         '⌫' ->
             button [ HA.class "key is_delete", onClick Delete ] [ String.fromChar letter |> text ]
@@ -373,11 +373,34 @@ renderBtn letter =
             div [ HA.class "key is_spacer" ] []
 
         char ->
-            button [ HA.class (keyClass char), onClick <| KeyPress letter ] [ String.fromChar letter |> text ]
+            let
+                state =
+                    Dict.get char keyboardDictionary
+            in
+            button [ HA.class (keyClass char state), onClick <| KeyPress letter ] [ String.fromChar letter |> text ]
 
 
 
 -- Game related functions
+
+
+letterStateAsString : LetterState -> String
+letterStateAsString letterState =
+    case letterState of
+        Blank ->
+            "Blank"
+
+        Pending ->
+            "Pending"
+
+        Incorrect ->
+            "Incorrect"
+
+        Correct ->
+            "Correct"
+
+        Present ->
+            "Present"
 
 
 getRandomWord : Cmd Msg
@@ -409,9 +432,6 @@ updateKeyboardDict currentGuess currentDict solution =
 
                         checkOthers =
                             checkOtherStatesChar ch solution
-
-                        _ =
-                            Debug.log "maybeLetterState" maybeLetterState
                     in
                     case maybeLetterState of
                         Just Blank ->
@@ -636,9 +656,18 @@ revealTileClass letter =
             "tile"
 
 
-keyClass : Char -> String
-keyClass letter =
-    "key " ++ "is_" ++ String.fromChar letter
+keyClass : Char -> Maybe LetterState -> String
+keyClass letter maybeLetterState =
+    let
+        state =
+            case maybeLetterState of
+                Just st ->
+                    letterStateAsString st
+
+                Nothing ->
+                    letterStateAsString Blank
+    in
+    "key " ++ "is_" ++ String.fromChar letter ++ " " ++ "is_" ++ String.toLower state
 
 
 boardRowClass : Int -> Maybe Int -> String
