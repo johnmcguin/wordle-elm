@@ -35,9 +35,18 @@ type alias KeyboardRow =
     List Letter
 
 
-type GameResult
+type EndResult
     = WonIn Int
     | Lost
+
+
+type alias GameResult =
+    { result : EndResult
+    , board : List KeyboardRow
+    , keyboardLetters : List (List Char)
+    , solution : String
+    , message : Maybe String
+    }
 
 
 type alias GameInProgress =
@@ -159,7 +168,7 @@ update msg model =
                     isSubmittable && guess == gameState.solution
 
                 gameLost =
-                    isSubmittable && guess /= gameState.solution && gameState.currentRow == 6 && wordIsValid guess
+                    isSubmittable && guess /= gameState.solution && gameState.currentRow == 5 && wordIsValid guess
 
                 progressNextRow =
                     isSubmittable && guess /= gameState.solution && gameState.currentRow < 6 && wordIsValid guess
@@ -188,10 +197,26 @@ update msg model =
                     updateKeyboardDict gameState.currentGuess gameState.keyboardDictionary gameState.solution
             in
             if gameWon then
-                ( GameEnd (WonIn <| gameState.currentRow + 1), Cmd.none )
+                ( GameEnd
+                    { solution = gameState.solution
+                    , board = gameState.board
+                    , result = WonIn <| gameState.currentRow + 1
+                    , message = Nothing -- get the message
+                    , keyboardLetters = gameState.keyboardLetters
+                    }
+                , Cmd.none
+                )
 
             else if gameLost then
-                ( GameEnd Lost, Cmd.none )
+                ( GameEnd
+                    { solution = gameState.solution
+                    , board = gameState.board
+                    , result = Lost
+                    , message = Just gameState.solution
+                    , keyboardLetters = gameState.keyboardLetters
+                    }
+                , Cmd.none
+                )
 
             else
                 ( InProgress
