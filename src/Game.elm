@@ -333,7 +333,7 @@ update msg model =
             )
 
         _ ->
-            Debug.todo "handle rest"
+            Debug.todo "handle unexpected transition"
 
 
 
