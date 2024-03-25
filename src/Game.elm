@@ -198,10 +198,7 @@ update msg model =
                 gameWon =
                     board
                         |> LE.getAt gameState.currentRow
-                        |> Maybe.map
-                            (\keyboardRow ->
-                                List.all (\( _, state ) -> state == Correct) keyboardRow
-                            )
+                        |> Maybe.map (List.all (\( _, state ) -> state == Correct))
                         |> Maybe.withDefault False
 
                 newDict =
