@@ -211,7 +211,7 @@ update msg model =
                 ( GameEnd
                     { solution = gameState.solution
                     , board = board
-                    , result = WonIn <| gameState.currentRow + 1
+                    , result = WonIn <| gameState.currentRow
                     , message = Nothing
                     , keyboardLetters = gameState.keyboardLetters
                     , keyboardDictionary = newDict
@@ -326,11 +326,11 @@ update msg model =
                 { gameResult
                     | message =
                         case gameResult.result of
-                            WonIn _ ->
-                                Just "yay"
+                            WonIn count ->
+                                successMessage count
 
                             Lost ->
-                                Just "uh oh"
+                                Just gameResult.solution
                 }
             , Cmd.none
             )
@@ -388,7 +388,7 @@ maybeRenderMessage : Maybe String -> Html Msg
 maybeRenderMessage maybeMessage =
     case maybeMessage of
         Just messageText ->
-            div [ HA.class "message" ] [ text messageText ]
+            div [ HA.class "message" ] [ text <| String.toUpper messageText ]
 
         Nothing ->
             text ""
@@ -500,6 +500,31 @@ applyGuess game =
     game.board
         |> List.indexedMap (markCorrect game.currentRow game.solution)
         |> List.indexedMap (markOtherTiles game.currentRow game.solution)
+
+
+successMessage : Int -> Maybe String
+successMessage solvedIn =
+    case solvedIn of
+        0 ->
+            Just "Genius"
+
+        1 ->
+            Just "Magnificent"
+
+        2 ->
+            Just "Impressive"
+
+        3 ->
+            Just "Splendid"
+
+        4 ->
+            Just "Great"
+
+        5 ->
+            Just "Phew"
+
+        _ ->
+            Nothing
 
 
 updateKeyboardDict : List Char -> KeyboardDictionary -> String -> KeyboardDictionary
