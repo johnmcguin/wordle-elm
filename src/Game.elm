@@ -322,30 +322,50 @@ view model =
         InProgress gameState ->
             let
                 message =
-                    case gameState.message of
-                        Just messageText ->
-                            div [ HA.class "message" ] [ text messageText ]
-
-                        Nothing ->
-                            text ""
+                    maybeRenderMessage gameState.message
 
                 boardRows =
-                    gameState.board
-                        |> List.indexedMap (\idx row -> renderBoardRow idx gameState.shakeRow row)
+                    renderBoardRows gameState.board gameState.shakeRow
 
                 keyboardRows =
-                    List.map (renderRow gameState.keyboardDictionary) gameState.keyboardLetters
+                    renderKeyboardRows gameState.keyboardDictionary gameState.keyboardLetters
             in
-            div [ HA.class "app" ]
-                [ div [ HA.class "board_wrapper" ]
-                    [ message
-                    , div [ HA.class "board" ] boardRows
-                    ]
-                , div [ HA.class "keyboard" ] keyboardRows
-                ]
+            renderGame message boardRows keyboardRows
 
         _ ->
             div [] [ text "todo - handle other states" ]
+
+
+renderGame : Html Msg -> List (Html Msg) -> List (Html Msg) -> Html Msg
+renderGame msg boardRows keyboardRows =
+    div [ HA.class "app" ]
+        [ div [ HA.class "board_wrapper" ]
+            [ msg
+            , div [ HA.class "board" ] boardRows
+            ]
+        , div [ HA.class "keyboard" ] keyboardRows
+        ]
+
+
+maybeRenderMessage : Maybe String -> Html Msg
+maybeRenderMessage maybeMessage =
+    case maybeMessage of
+        Just messageText ->
+            div [ HA.class "message" ] [ text messageText ]
+
+        Nothing ->
+            text ""
+
+
+renderBoardRows : List KeyboardRow -> Maybe Int -> List (Html Msg)
+renderBoardRows gameBoard maybeShakeRowIdx =
+    gameBoard
+        |> List.indexedMap (\idx row -> renderBoardRow idx maybeShakeRowIdx row)
+
+
+renderKeyboardRows : KeyboardDictionary -> List (List Char) -> List (Html Msg)
+renderKeyboardRows keyboardDictionary keyboardLetters =
+    List.map (renderRow keyboardDictionary) keyboardLetters
 
 
 renderBoardRow : Int -> Maybe Int -> KeyboardRow -> Html Msg
