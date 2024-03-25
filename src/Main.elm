@@ -26,15 +26,13 @@ main =
 
 
 type Model
-    = Initial
-    | Game Game.Model
+    = Game Game.Model
 
 
 init : D.Value -> ( Model, Cmd Msg )
 init flags =
     case D.decodeValue flagsDecoder flags of
         Ok result ->
-            -- ( Game { game = Game.init result.word }, Cmd.none )
             ( Game <| Game.init result.word, Cmd.none )
 
         Err _ ->
@@ -58,13 +56,6 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( Initial, ToGame gameMsg ) ->
-            let
-                ( gameModel, _ ) =
-                    Game.init "" |> Game.update gameMsg
-            in
-            ( Game gameModel, Cmd.none )
-
         ( Game gameState, ToGame gameMsg ) ->
             let
                 ( gameModel, gameCmd ) =
@@ -135,8 +126,5 @@ toKey key =
 view : Model -> Html Msg
 view model =
     case model of
-        Initial ->
-            Game.init "" |> Game.view |> Html.map ToGame
-
         Game gameState ->
             Game.view gameState |> Html.map ToGame

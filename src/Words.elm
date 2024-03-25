@@ -1,6 +1,6 @@
-module Words exposing (..)
+module Words exposing (wordIsValid, getRandom, wordLength)
 
-import Set exposing (Set(..))
+import Set exposing (Set)
 import List.Extra as LE
 
 

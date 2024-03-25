@@ -100,20 +100,23 @@ update msg model =
     case ( model, msg ) of
         ( InProgress gameState, KeyPress key ) ->
             let
+                guessWritable : Bool
                 guessWritable =
                     List.length gameState.currentGuess < 5
 
-                row =
+                getRow : Int -> List Letter
+                getRow idx =
                     gameState.board
-                        |> LE.getAt gameState.currentRow
+                        |> LE.getAt idx
                         |> Maybe.withDefault []
 
-                cell =
-                    row
-                        |> find (\( char, _ ) -> char == ' ')
+                findCell : List ( Char, b ) -> Maybe ( Int, ( Char, b ) )
+                findCell =
+                    find (\( char, _ ) -> char == ' ')
 
-                updatedRow =
-                    case cell of
+                updatedRow : List Letter -> List ( Char, LetterState )
+                updatedRow row =
+                    case findCell row of
                         Just c ->
                             row
                                 |> LE.updateAt (Tuple.first c) (\_ -> ( key, Pending ))
@@ -130,7 +133,7 @@ update msg model =
                                 |> List.indexedMap
                                     (\idx letterRow ->
                                         if idx == gameState.currentRow then
-                                            updatedRow
+                                            updatedRow (getRow gameState.currentRow)
 
                                         else
                                             letterRow
@@ -153,12 +156,14 @@ update msg model =
                         _ ->
                             False
 
+                isSubmittable : Bool
                 isSubmittable =
                     gameState.board
                         |> LE.getAt gameState.currentRow
                         |> Maybe.map (List.all isPending)
                         |> Maybe.withDefault False
 
+                guess : String
                 guess =
                     gameState.board
                         |> LE.getAt gameState.currentRow
@@ -166,20 +171,25 @@ update msg model =
                         |> Maybe.map String.fromList
                         |> Maybe.withDefault ""
 
-                gameLost =
-                    isSubmittable && guess /= gameState.solution && gameState.currentRow == 5 && wordIsValid guess
+                gameLost : String -> Bool
+                gameLost solution =
+                    isSubmittable && guess /= solution && gameState.currentRow == 5 && wordIsValid guess
 
-                progressNextRow =
-                    isSubmittable && guess /= gameState.solution && gameState.currentRow < 6 && wordIsValid guess
+                progressNextRow : Int -> Bool
+                progressNextRow currentRow =
+                    isSubmittable && guess /= gameState.solution && currentRow < 6 && wordIsValid guess
 
+                shouldApplyGuess : Bool
                 shouldApplyGuess =
                     isSubmittable && gameState.currentRow < 6 && wordIsValid guess
 
-                isUnsupportedWord =
-                    isSubmittable && guess /= gameState.solution && not (wordIsValid guess)
+                isUnsupportedWord : String -> Bool
+                isUnsupportedWord guessedWord =
+                    isSubmittable && guessedWord /= gameState.solution && not (wordIsValid guessedWord)
 
-                message =
-                    if isUnsupportedWord then
+                getMessage : Bool -> Maybe String
+                getMessage isUnsupported =
+                    if isUnsupported then
                         Just "Not in word list"
 
                     else if not isSubmittable then
@@ -188,6 +198,7 @@ update msg model =
                     else
                         Nothing
 
+                board : List KeyboardRow
                 board =
                     if shouldApplyGuess then
                         applyGuess gameState
@@ -195,12 +206,14 @@ update msg model =
                     else
                         gameState.board
 
+                gameWon : Bool
                 gameWon =
                     board
                         |> LE.getAt gameState.currentRow
                         |> Maybe.map (List.all (\( _, state ) -> state == Correct))
                         |> Maybe.withDefault False
 
+                newDict : KeyboardDictionary
                 newDict =
                     updateKeyboardDict gameState.currentGuess gameState.keyboardDictionary gameState.solution
             in
@@ -216,7 +229,7 @@ update msg model =
                 , showEndGameMessage
                 )
 
-            else if gameLost then
+            else if gameLost gameState.solution then
                 ( GameEnd
                     { solution = gameState.solution
                     , board = board
@@ -229,23 +242,27 @@ update msg model =
                 )
 
             else
+                let
+                    message =
+                        getMessage (isUnsupportedWord guess)
+                in
                 ( InProgress
                     { gameState
                         | currentRow =
-                            if progressNextRow then
+                            if progressNextRow gameState.currentRow then
                                 gameState.currentRow + 1
 
                             else
                                 gameState.currentRow
                         , board = board
                         , currentGuess =
-                            if not isUnsupportedWord then
+                            if not (isUnsupportedWord guess) then
                                 []
 
                             else
                                 gameState.currentGuess
                         , shakeRow =
-                            if isUnsupportedWord || not isSubmittable then
+                            if isUnsupportedWord guess || not isSubmittable then
                                 Just gameState.currentRow
 
                             else
@@ -253,7 +270,7 @@ update msg model =
                         , message = message
                         , keyboardDictionary = newDict
                     }
-                , Cmd.batch [ clearAnimation (isUnsupportedWord || not isSubmittable), clearAlert message ]
+                , Cmd.batch [ clearAnimation (isUnsupportedWord guess || not isSubmittable), clearAlert message ]
                 )
 
         ( InProgress gameState, Delete ) ->
@@ -333,7 +350,7 @@ update msg model =
             )
 
         _ ->
-            Debug.todo "handle unexpected transition"
+            ( model, Cmd.none )
 
 
 
@@ -570,7 +587,7 @@ checkCorrectChar ch idx word currentLetterState =
             String.indexes charAsString word
 
         isCorrect =
-            List.any (\occ -> occ == idx) occurrences
+            List.member idx occurrences
     in
     if isCorrect then
         Correct
@@ -582,15 +599,15 @@ checkCorrectChar ch idx word currentLetterState =
 checkOtherStatesChar : Char -> String -> LetterState -> LetterState
 checkOtherStatesChar ch word markedLetterState =
     let
-        charAsString =
-            String.fromChar ch
+        isPresent : Char -> String -> Bool
+        isPresent char string =
+            char
+                |> String.fromChar
+                |> String.indexes string
+                |> List.length
+                |> (\len -> len > 0)
 
-        occurrences =
-            String.indexes charAsString word
-
-        isPresent =
-            List.length occurrences > 0
-
+        currentlyCorrect : Bool
         currentlyCorrect =
             case markedLetterState of
                 Correct ->
@@ -602,7 +619,7 @@ checkOtherStatesChar ch word markedLetterState =
     if currentlyCorrect then
         Correct
 
-    else if isPresent then
+    else if isPresent ch word then
         Present
 
     else
@@ -641,8 +658,9 @@ markOtherTiles activeGameRow solution boardIdx tiles =
                 _ ->
                     solutionChar
 
-        calculatedSolution =
-            List.map2 calcNewSolution tiles (String.toList solution) |> String.fromList |> String.trim
+        calculatedSolution : String -> String
+        calculatedSolution currentSolution =
+            List.map2 calcNewSolution tiles (String.toList currentSolution) |> String.fromList |> String.trim
     in
     if boardIdx == activeGameRow then
         tiles
@@ -653,7 +671,7 @@ markOtherTiles activeGameRow solution boardIdx tiles =
                             tile
 
                         newLetterState =
-                            checkOtherStatesChar char calculatedSolution currentLetterState
+                            checkOtherStatesChar char (calculatedSolution solution) currentLetterState
                     in
                     ( char, newLetterState )
                 )
