@@ -44,6 +44,7 @@ type alias GameResult =
     { result : EndResult
     , board : List KeyboardRow
     , keyboardLetters : List (List Char)
+    , keyboardDictionary : KeyboardDictionary
     , solution : String
     , message : Maybe String
     }
@@ -164,14 +165,14 @@ update msg model =
                         |> Maybe.map String.fromList
                         |> Maybe.withDefault ""
 
-                gameWon =
-                    isSubmittable && guess == gameState.solution
-
                 gameLost =
                     isSubmittable && guess /= gameState.solution && gameState.currentRow == 5 && wordIsValid guess
 
                 progressNextRow =
                     isSubmittable && guess /= gameState.solution && gameState.currentRow < 6 && wordIsValid guess
+
+                shouldApplyGuess =
+                    isSubmittable && gameState.currentRow < 6 && wordIsValid guess
 
                 isUnsupportedWord =
                     isSubmittable && guess /= gameState.solution && not (wordIsValid guess)
@@ -187,11 +188,20 @@ update msg model =
                         Nothing
 
                 board =
-                    if progressNextRow then
+                    if shouldApplyGuess then
                         applyGuess gameState
 
                     else
                         gameState.board
+
+                gameWon =
+                    board
+                        |> LE.getAt gameState.currentRow
+                        |> Maybe.map
+                            (\keyboardRow ->
+                                List.all (\( _, state ) -> state == Correct) keyboardRow
+                            )
+                        |> Maybe.withDefault False
 
                 newDict =
                     updateKeyboardDict gameState.currentGuess gameState.keyboardDictionary gameState.solution
@@ -199,10 +209,11 @@ update msg model =
             if gameWon then
                 ( GameEnd
                     { solution = gameState.solution
-                    , board = gameState.board
+                    , board = board
                     , result = WonIn <| gameState.currentRow + 1
-                    , message = Nothing -- get the message
+                    , message = Just "Yay!" -- get the message && schedule message to be shown after animations finished
                     , keyboardLetters = gameState.keyboardLetters
+                    , keyboardDictionary = newDict
                     }
                 , Cmd.none
                 )
@@ -210,10 +221,11 @@ update msg model =
             else if gameLost then
                 ( GameEnd
                     { solution = gameState.solution
-                    , board = gameState.board
+                    , board = board
                     , result = Lost
-                    , message = Just gameState.solution
+                    , message = Just gameState.solution -- schedule message after animations finished
                     , keyboardLetters = gameState.keyboardLetters
+                    , keyboardDictionary = newDict
                     }
                 , Cmd.none
                 )
@@ -332,8 +344,18 @@ view model =
             in
             renderGame message boardRows keyboardRows
 
-        _ ->
-            div [] [ text "todo - handle other states" ]
+        GameEnd gameResult ->
+            let
+                message =
+                    maybeRenderMessage gameResult.message
+
+                boardRows =
+                    renderBoardRows gameResult.board Nothing
+
+                keyboardRows =
+                    renderKeyboardRows gameResult.keyboardDictionary gameResult.keyboardLetters
+            in
+            renderGame message boardRows keyboardRows
 
 
 renderGame : Html Msg -> List (Html Msg) -> List (Html Msg) -> Html Msg
