@@ -92,6 +92,7 @@ type Msg
     | GotRandomIndex Int
     | ClearAnimation
     | ClearAlert
+    | ShowEndGameMessage
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -211,11 +212,11 @@ update msg model =
                     { solution = gameState.solution
                     , board = board
                     , result = WonIn <| gameState.currentRow + 1
-                    , message = Just "Yay!" -- get the message && schedule message to be shown after animations finished
+                    , message = Nothing
                     , keyboardLetters = gameState.keyboardLetters
                     , keyboardDictionary = newDict
                     }
-                , Cmd.none
+                , showEndGameMessage
                 )
 
             else if gameLost then
@@ -223,11 +224,11 @@ update msg model =
                     { solution = gameState.solution
                     , board = board
                     , result = Lost
-                    , message = Just gameState.solution -- schedule message after animations finished
+                    , message = Nothing
                     , keyboardLetters = gameState.keyboardLetters
                     , keyboardDictionary = newDict
                     }
-                , Cmd.none
+                , showEndGameMessage
                 )
 
             else
@@ -317,6 +318,20 @@ update msg model =
 
         ( InProgress gameState, ClearAlert ) ->
             ( InProgress { gameState | message = Nothing }
+            , Cmd.none
+            )
+
+        ( GameEnd gameResult, ShowEndGameMessage ) ->
+            ( GameEnd
+                { gameResult
+                    | message =
+                        case gameResult.result of
+                            WonIn _ ->
+                                Just "yay"
+
+                            Lost ->
+                                Just "uh oh"
+                }
             , Cmd.none
             )
 
@@ -776,6 +791,11 @@ find pred list =
 
             else
                 Maybe.map (\( index, item ) -> ( index + 1, item )) <| find pred xs
+
+
+showEndGameMessage : Cmd Msg
+showEndGameMessage =
+    Process.sleep 1800 |> Task.perform (\_ -> ShowEndGameMessage)
 
 
 clearAnimation : Bool -> Cmd Msg
