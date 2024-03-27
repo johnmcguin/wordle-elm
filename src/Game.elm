@@ -213,9 +213,13 @@ update msg model =
                         |> Maybe.map (List.all (\( _, state ) -> state == Correct))
                         |> Maybe.withDefault False
 
-                newDict : KeyboardDictionary
-                newDict =
-                    updateKeyboardDict gameState.currentGuess gameState.keyboardDictionary gameState.solution
+                newDict : Bool -> KeyboardDictionary
+                newDict shouldUpdate =
+                    if shouldUpdate then
+                        updateKeyboardDict gameState.currentGuess gameState.keyboardDictionary gameState.solution
+
+                    else
+                        gameState.keyboardDictionary
             in
             if gameWon then
                 ( GameEnd
@@ -224,7 +228,7 @@ update msg model =
                     , result = WonIn <| gameState.currentRow
                     , message = Nothing
                     , keyboardLetters = gameState.keyboardLetters
-                    , keyboardDictionary = newDict
+                    , keyboardDictionary = newDict shouldApplyGuess
                     }
                 , showEndGameMessage
                 )
@@ -236,13 +240,14 @@ update msg model =
                     , result = Lost
                     , message = Nothing
                     , keyboardLetters = gameState.keyboardLetters
-                    , keyboardDictionary = newDict
+                    , keyboardDictionary = newDict shouldApplyGuess
                     }
                 , showEndGameMessage
                 )
 
             else
                 let
+                    message : Maybe String
                     message =
                         getMessage (isUnsupportedWord guess)
                 in
@@ -268,25 +273,29 @@ update msg model =
                             else
                                 Nothing
                         , message = message
-                        , keyboardDictionary = newDict
+                        , keyboardDictionary = newDict shouldApplyGuess
                     }
                 , Cmd.batch [ clearAnimation (isUnsupportedWord guess || not isSubmittable), clearAlert message ]
                 )
 
         ( InProgress gameState, Delete ) ->
             let
+                row : List Letter
                 row =
                     gameState.board
                         |> LE.getAt gameState.currentRow
                         |> Maybe.withDefault []
 
+                backwards_row : List Letter
                 backwards_row =
                     row |> List.reverse
 
+                cell : Maybe ( Int, ( Char, LetterState ) )
                 cell =
                     backwards_row
                         |> find (\( char, _ ) -> char /= ' ')
 
+                updatedRow : List ( Char, LetterState )
                 updatedRow =
                     case cell of
                         Just c ->
@@ -297,6 +306,7 @@ update msg model =
                         Nothing ->
                             row
 
+                currentGuess : List Char
                 currentGuess =
                     gameState.currentGuess
                         |> List.reverse
@@ -362,12 +372,15 @@ view model =
     case model of
         InProgress gameState ->
             let
+                message : Html Msg
                 message =
                     maybeRenderMessage gameState.message
 
+                boardRows : List (Html Msg)
                 boardRows =
                     renderBoardRows gameState.board gameState.shakeRow
 
+                keyboardRows : List (Html Msg)
                 keyboardRows =
                     renderKeyboardRows gameState.keyboardDictionary gameState.keyboardLetters
             in
@@ -375,12 +388,15 @@ view model =
 
         GameEnd gameResult ->
             let
+                message : Html Msg
                 message =
                     maybeRenderMessage gameResult.message
 
+                boardRows : List (Html Msg)
                 boardRows =
                     renderBoardRows gameResult.board Nothing
 
+                keyboardRows : List (Html Msg)
                 keyboardRows =
                     renderKeyboardRows gameResult.keyboardDictionary gameResult.keyboardLetters
             in
@@ -427,6 +443,7 @@ renderBoardRow idx shakeRowVal boardRow =
 renderBoardRowItems : Int -> Letter -> Html Msg
 renderBoardRowItems idx letter =
     let
+        charAsString : String
         charAsString =
             letter
                 |> Tuple.first
@@ -450,10 +467,11 @@ renderBoardRowItems idx letter =
 renderRow : KeyboardDictionary -> List Char -> Html Msg
 renderRow keyboardDictionary letterRows =
     let
-        key_rows =
+        keyRows : List (Html Msg)
+        keyRows =
             List.map (renderBtn keyboardDictionary) letterRows
     in
-    div [ HA.class "keyboard_row" ] key_rows
+    div [ HA.class "keyboard_row" ] keyRows
 
 
 renderBtn : KeyboardDictionary -> Char -> Html Msg
@@ -548,25 +566,31 @@ updateKeyboardDict currentGuess currentDict solution =
             Dict.update ch
                 (\maybeLetterState ->
                     let
+                        checkCorrect : LetterState -> LetterState
                         checkCorrect =
                             checkCorrectChar ch idx solution
 
+                        checkOthers : LetterState -> LetterState
                         checkOthers =
                             checkOtherStatesChar ch solution
+
+                        checkAll : LetterState -> LetterState
+                        checkAll =
+                            checkCorrect >> checkOthers
                     in
                     case maybeLetterState of
                         Just Blank ->
-                            Just (checkCorrect Blank |> checkOthers)
+                            Just <| checkAll Blank
 
                         -- if at any point is has been marked correct, we want to keep that demarcation on the keyboard
                         Just Correct ->
                             Just Correct
 
                         Just Present ->
-                            Just (checkCorrect Present |> checkOthers)
+                            Just <| checkAll Present
 
                         Just Incorrect ->
-                            Just (checkCorrect Incorrect |> checkOthers)
+                            Just <| checkAll Incorrect
 
                         _ ->
                             Just Blank
@@ -580,12 +604,15 @@ updateKeyboardDict currentGuess currentDict solution =
 checkCorrectChar : Char -> Int -> String -> LetterState -> LetterState
 checkCorrectChar ch idx word currentLetterState =
     let
+        charAsString : String
         charAsString =
             String.fromChar ch
 
+        occurrences : List Int
         occurrences =
             String.indexes charAsString word
 
+        isCorrect : Bool
         isCorrect =
             List.member idx occurrences
     in
@@ -603,7 +630,7 @@ checkOtherStatesChar ch word markedLetterState =
         isPresent char string =
             char
                 |> String.fromChar
-                |> String.indexes string
+                |> (\search -> String.indexes search string)
                 |> List.length
                 |> (\len -> len > 0)
 
@@ -781,6 +808,7 @@ revealTileClass letter =
 keyClass : Char -> Maybe LetterState -> String
 keyClass letter maybeLetterState =
     let
+        state : String
         state =
             case maybeLetterState of
                 Just st ->
